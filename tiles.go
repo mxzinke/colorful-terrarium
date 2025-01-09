@@ -16,7 +16,7 @@ const baseURL = "https://terrain.mapstudio.ai/%d/%d/%d.png"
 const tileSize = 256 // Standard tile size
 
 type TileCoord struct {
-	Z, X, Y int
+	Z, X, Y uint32
 }
 
 func downloadTile(coord TileCoord) (image.Image, error) {
@@ -62,7 +62,7 @@ func downloadTile(coord TileCoord) (image.Image, error) {
 	return nil, fmt.Errorf("failed to download tile after %d attempts", maxRetries)
 }
 
-func downloadSubTiles(parentZ, parentX, parentY int) ([]TileImage, error) {
+func downloadSubTiles(parentZ, parentX, parentY uint32) ([]TileImage, error) {
 	childZ := parentZ + 1
 	baseChildX := parentX * 2
 	baseChildY := parentY * 2
@@ -75,7 +75,7 @@ func downloadSubTiles(parentZ, parentX, parentY int) ([]TileImage, error) {
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 2; j++ {
 			wg.Add(1)
-			go func(index, offsetX, offsetY int) {
+			go func(index, offsetX, offsetY uint32) {
 				defer wg.Done()
 				coord := TileCoord{
 					Z: childZ,
@@ -88,7 +88,7 @@ func downloadSubTiles(parentZ, parentX, parentY int) ([]TileImage, error) {
 					return
 				}
 				tiles[index] = TileImage{Coord: coord, Image: img}
-			}(i*2+j, j, i)
+			}(uint32(i*2+j), uint32(j), uint32(i))
 		}
 	}
 

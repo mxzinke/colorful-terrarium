@@ -91,3 +91,73 @@ func getColorForElevation(elevation float64) Color {
 		B: uint8(math.Round(math.Max(0, math.Min(255, b)))),
 	}
 }
+
+// getColorForElevationAndLatitude returns color based on both elevation and geographic latitude
+func getColorForElevationAndLatitude(elevation, latitude float64) Color {
+	const (
+		polarStart    = 50.0  // Start of polar regions
+		tropicStart   = 25.0  // Start of tropical regions
+		maxLatitude   = 85.05 // Maximum latitude
+		iceTransition = -2.0  // Elevation where ice starts forming
+	)
+
+	// Get base color for elevation
+	baseColor := getColorForElevation(elevation)
+
+	// Calculate latitude factor (0 at equator, 1 at poles)
+	absLat := math.Abs(latitude)
+	latitudeFactor := math.Max(0, math.Min(1, (absLat-tropicStart)/(polarStart-tropicStart)))
+
+	// Calculate polar factor (0 to 1, stronger near poles)
+	polarFactor := math.Max(0, math.Min(1, (absLat-polarStart)/(maxLatitude-polarStart)))
+
+	// Special handling for water at high latitudes
+	if elevation <= 0 {
+		// Calculate ice factor based on elevation and latitude
+		iceFactor := 0.0
+		if elevation > iceTransition {
+			iceFactor = (elevation - iceTransition) / math.Abs(iceTransition)
+		}
+
+		// Combine with latitude for final ice effect
+		iceFactor *= polarFactor
+
+		// Ice color (slightly blue-tinted white)
+		iceColor := Color{240, 245, 255}
+
+		return Color{
+			R: uint8(float64(baseColor.R)*(1-iceFactor) + float64(iceColor.R)*iceFactor),
+			G: uint8(float64(baseColor.G)*(1-iceFactor) + float64(iceColor.G)*iceFactor),
+			B: uint8(float64(baseColor.B)*(1-iceFactor) + float64(iceColor.B)*iceFactor),
+		}
+	}
+
+	// Land areas
+	if elevation > 0 {
+		// Snow color for high latitudes
+		snowColor := Color{250, 250, 250}
+
+		// Tropical enhancement factors
+		tropicalColor := Color{
+			R: uint8(math.Min(255, float64(baseColor.R)*0.9)),
+			G: uint8(math.Min(255, float64(baseColor.G)*1.1)),
+			B: uint8(math.Min(255, float64(baseColor.B)*0.8)),
+		}
+
+		// First interpolate between tropical and base color
+		midColor := Color{
+			R: uint8(float64(tropicalColor.R)*(1-latitudeFactor) + float64(baseColor.R)*latitudeFactor),
+			G: uint8(float64(tropicalColor.G)*(1-latitudeFactor) + float64(baseColor.G)*latitudeFactor),
+			B: uint8(float64(tropicalColor.B)*(1-latitudeFactor) + float64(baseColor.B)*latitudeFactor),
+		}
+
+		// Then interpolate with snow based on polar factor
+		return Color{
+			R: uint8(float64(midColor.R)*(1-polarFactor) + float64(snowColor.R)*polarFactor),
+			G: uint8(float64(midColor.G)*(1-polarFactor) + float64(snowColor.G)*polarFactor),
+			B: uint8(float64(midColor.B)*(1-polarFactor) + float64(snowColor.B)*polarFactor),
+		}
+	}
+
+	return baseColor
+}

@@ -6,27 +6,29 @@ import (
 	"image/color"
 	"image/png"
 	"log"
+	"math"
 	"os"
 )
 
-func processAndColorize(img image.Image) *image.RGBA {
+func processAndColorize(img image.Image, minLat, maxLat float64, zoom uint32) *image.RGBA {
 	bounds := img.Bounds()
 	output := image.NewRGBA(bounds)
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		// Calculate precise latitude for this pixel row
+		latitude := getLatitudeForPixel(y, minLat, maxLat, 512)
+
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			r, g, b, _ := img.At(x, y).RGBA()
 
-			// Convert 16-bit color values to 8-bit
 			r8 := uint8(r >> 8)
 			g8 := uint8(g >> 8)
 			b8 := uint8(b >> 8)
 
-			// Calculate elevation using Terrarium formula
+			// Calculate base elevation and apply latitude-based offset
 			elevation := float64(r8)*256 + float64(g8) + float64(b8)/256 - 32768
 
-			// Get color for elevation
-			newColor := getColorForElevation(elevation)
+			newColor := getColorForElevationAndLatitude(elevation, latitude)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}
 	}
@@ -39,10 +41,10 @@ func main() {
 		log.Fatal("Usage: ./terrain-downloader z x y output.png")
 	}
 
-	var z, x, y int
+	var z, y, x uint32
 	fmt.Sscanf(os.Args[1], "%d", &z)
-	fmt.Sscanf(os.Args[2], "%d", &x)
-	fmt.Sscanf(os.Args[3], "%d", &y)
+	fmt.Sscanf(os.Args[2], "%d", &y)
+	fmt.Sscanf(os.Args[3], "%d", &x)
 	outputPath := os.Args[4]
 
 	// Download subtiles
@@ -54,8 +56,10 @@ func main() {
 	// Combine tiles
 	combined := compositeImages(tiles)
 
+	minLat, maxLat := getTileLatitudes(z, y)
+
 	// Process and colorize
-	processed := processAndColorize(combined)
+	processed := processAndColorize(combined, minLat, maxLat, z)
 
 	// Save output
 	outputFile, err := os.Create(outputPath)
@@ -67,4 +71,36 @@ func main() {
 	if err := png.Encode(outputFile, processed); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// getTileLatitudes calculates the minimum and maximum latitudes for a given tile
+func getTileLatitudes(z, y uint32) (minLat, maxLat float64) {
+	n := math.Pi - 2.0*math.Pi*float64(y)/math.Pow(2.0, float64(z))
+	maxLat = math.Atan(math.Sinh(n)) * 180.0 / math.Pi
+
+	n = math.Pi - 2.0*math.Pi*float64(y+1)/math.Pow(2.0, float64(z))
+	minLat = math.Atan(math.Sinh(n)) * 180.0 / math.Pi
+
+	return minLat, maxLat
+}
+
+// getLatitudeForPixel calculates the latitude for a specific pixel y-coordinate within a tile
+func getLatitudeForPixel(pixelY int, minLat, maxLat float64, tileSize int) float64 {
+	// Convert pixel position to normalized position within the tile (0 to 1)
+	normalizedY := float64(pixelY) / float64(tileSize)
+
+	// Mercator projection is non-linear, so we need to convert to radians,
+	// interpolate in projected space, then convert back
+	maxLatRad := maxLat * math.Pi / 180.0
+	minLatRad := minLat * math.Pi / 180.0
+
+	// Project to mercator y coordinate
+	maxY := math.Log(math.Tan(math.Pi/4 + maxLatRad/2))
+	minY := math.Log(math.Tan(math.Pi/4 + minLatRad/2))
+
+	// Interpolate in projected space
+	y := minY + normalizedY*(maxY-minY)
+
+	// Convert back to latitude
+	return (2*math.Atan(math.Exp(y)) - math.Pi/2) * 180.0 / math.Pi
 }

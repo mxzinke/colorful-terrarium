@@ -21,7 +21,7 @@ func compositeImages(tiles []TileImage) *image.RGBA {
 
 		for y := 0; y < bounds.Dy(); y++ {
 			for x := 0; x < bounds.Dx(); x++ {
-				combined.Set(x+offsetX, y+offsetY, tile.Image.At(x, y))
+				combined.Set(x+int(offsetX), y+int(offsetY), tile.Image.At(x, y))
 			}
 		}
 	}
