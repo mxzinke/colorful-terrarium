@@ -15,56 +15,96 @@ type ColorStop struct {
 	Color     Color
 }
 
-// Define color palette with more natural colors and smoother transitions
-var colorPalette = []ColorStop{
-	{-10000, Color{38, 116, 184}}, // Shallow ocean
-	{-1000, Color{65, 146, 208}},  // Deep ocean - helleres Blau
-	{-500, Color{89, 171, 227}},   // Medium depth ocean - noch heller
-	{-200, Color{109, 187, 239}},  // Shallow ocean - sehr hell
-	{-50, Color{170, 218, 252}},   // Very shallow water - fast weiß-blau
-	{-1, Color{191, 228, 252}},    // Coastal water - hellster Übergang
-	{0, Color{172, 208, 165}},     // Coastline
-	{100, Color{148, 191, 139}},   // Coastal plains
-	{300, Color{168, 198, 143}},   // Lowlands
-	{600, Color{189, 204, 150}},   // Hills
-	{1000, Color{195, 182, 157}},  // Low mountains
-	{1500, Color{168, 154, 134}},  // Medium mountains
-	{2000, Color{137, 125, 107}},  // High mountains
-	{2500, Color{130, 115, 95}},   // Very high mountains
-	{3000, Color{210, 200, 190}},  // Alpine/Snow transition
-	{4000, Color{255, 255, 255}},  // Permanent snow
+// ColorPalette represents a complete set of elevation-based colors
+type ColorPalette struct {
+	stops []ColorStop
 }
 
-// getColorForElevation returns interpolated color for given elevation
-func getColorForElevation(elevation float64) Color {
+var (
+	normalPalette = ColorPalette{
+		stops: []ColorStop{
+			{-10000, Color{38, 116, 184}}, // Shallow ocean
+			{-1000, Color{65, 146, 208}},  // Deep ocean
+			{-500, Color{89, 171, 227}},   // Medium depth ocean
+			{-200, Color{109, 187, 239}},  // Shallow ocean
+			{-50, Color{170, 218, 252}},   // Very shallow water
+			{-1, Color{191, 228, 252}},    // Coastal water
+			{0, Color{172, 208, 165}},     // Coastline
+			{50, Color{148, 191, 139}},    // Coastal plains
+			{100, Color{148, 191, 139}},   // Coastal plains
+			{300, Color{168, 198, 143}},   // Lowlands
+			{600, Color{189, 204, 150}},   // Hills
+			{1000, Color{195, 182, 157}},  // Low mountains
+			{1500, Color{168, 154, 134}},  // Medium mountains
+			{2000, Color{137, 125, 107}},  // High mountains
+			{2500, Color{130, 115, 95}},   // Very high mountains
+			{3000, Color{210, 200, 190}},  // Alpine/Snow transition
+			{4000, Color{255, 255, 255}},  // Permanent snow
+		},
+	}
+
+	polarPalette = ColorPalette{
+		stops: []ColorStop{
+			{-10000, Color{38, 116, 184}}, // Shallow ocean
+			{-1000, Color{65, 146, 208}},  // Deep ocean
+			{-500, Color{89, 171, 227}},   // Medium depth ocean
+			{-200, Color{109, 187, 239}},  // Shallow ocean
+			{-50, Color{170, 218, 252}},   // Very shallow water
+			{-1, Color{191, 228, 252}},    // Coastal water
+			{0, Color{172, 208, 165}},     // Coastline
+			{50, Color{250, 250, 250}},    // Snow plains
+			{200, Color{245, 245, 245}},   // Snow lowlands
+			{400, Color{240, 240, 240}},   // Snow hills
+			{700, Color{235, 235, 235}},   // Snow mountains
+			{1000, Color{230, 230, 230}},  // Deep snow mountains
+			{1500, Color{225, 225, 225}},  // High snow
+			{2000, Color{220, 220, 220}},  // Alpine snow
+			{2500, Color{215, 215, 215}},  // Permanent snow
+			{3000, Color{210, 210, 210}},  // High permanent snow
+		},
+	}
+)
+
+// getColorForElevationAndLatitude returns interpolated color based on elevation and latitude
+func getColorForElevationAndLatitude(elevation, latitude float64) Color {
+	// Calculate how "polar" the location is (0 = arctic circle, 1 = poles)
+	polarFactor := math.Min(math.Max((latitude-66)/(80-66), 0), 1)
+	snowThresholdFactor := math.Min(math.Max(latitude/66, 0), 1) / 0.65
+
+	// Get colors from both palette
+
+	if elevation < 0 {
+		return getColorFromPalette(elevation, normalPalette)
+	}
+
+	normalColor := getColorFromPalette(elevation*snowThresholdFactor, normalPalette)
+
+	polarColor := getColorFromPalette(elevation, polarPalette)
+
+	// Interpolate between normal and polar colors
+	return Color{
+		R: uint8(float64(normalColor.R)*(1-polarFactor) + float64(polarColor.R)*polarFactor),
+		G: uint8(float64(normalColor.G)*(1-polarFactor) + float64(polarColor.G)*polarFactor),
+		B: uint8(float64(normalColor.B)*(1-polarFactor) + float64(polarColor.B)*polarFactor),
+	}
+}
+
+func getColorFromPalette(elevation float64, palette ColorPalette) Color {
 	// Find color stops for interpolation
 	var lowStop, highStop ColorStop
 
-	// Handle elevation below or above range with smooth transitions
-	if elevation <= colorPalette[0].Elevation {
-		factor := math.Min(1.0, (colorPalette[0].Elevation-elevation)/1000.0)
-		return Color{
-			R: uint8(float64(colorPalette[0].Color.R) * (1 - factor*0.5)),
-			G: uint8(float64(colorPalette[0].Color.G) * (1 - factor*0.5)),
-			B: uint8(float64(colorPalette[0].Color.B) * (1 - factor*0.5)),
-		}
+	if elevation <= palette.stops[0].Elevation {
+		return palette.stops[0].Color
 	}
-	if elevation >= colorPalette[len(colorPalette)-1].Elevation {
-		excess := elevation - colorPalette[len(colorPalette)-1].Elevation
-		lastColor := colorPalette[len(colorPalette)-1].Color
-		factor := math.Min(1.0, excess/1000.0)
-		return Color{
-			R: uint8(math.Min(255, float64(lastColor.R)+(255-float64(lastColor.R))*factor)),
-			G: uint8(math.Min(255, float64(lastColor.G)+(255-float64(lastColor.G))*factor)),
-			B: uint8(math.Min(255, float64(lastColor.B)+(255-float64(lastColor.B))*factor)),
-		}
+	if elevation >= palette.stops[len(palette.stops)-1].Elevation {
+		return palette.stops[len(palette.stops)-1].Color
 	}
 
 	// Find appropriate color stops
-	for i := 0; i < len(colorPalette)-1; i++ {
-		if elevation >= colorPalette[i].Elevation && elevation < colorPalette[i+1].Elevation {
-			lowStop = colorPalette[i]
-			highStop = colorPalette[i+1]
+	for i := 0; i < len(palette.stops)-1; i++ {
+		if elevation >= palette.stops[i].Elevation && elevation < palette.stops[i+1].Elevation {
+			lowStop = palette.stops[i]
+			highStop = palette.stops[i+1]
 			break
 		}
 	}
@@ -92,74 +132,4 @@ func getColorForElevation(elevation float64) Color {
 		G: uint8(math.Round(math.Max(0, math.Min(255, g)))),
 		B: uint8(math.Round(math.Max(0, math.Min(255, b)))),
 	}
-}
-
-// getColorForElevationAndLatitude returns color based on both elevation and geographic latitude
-func getColorForElevationAndLatitude(elevation, latitude float64) Color {
-	const (
-		polarStart    = 50.0  // Start of polar regions
-		tropicStart   = 25.0  // Start of tropical regions
-		maxLatitude   = 85.05 // Maximum latitude
-		iceTransition = -2.0  // Elevation where ice starts forming
-	)
-
-	// Get base color for elevation
-	baseColor := getColorForElevation(elevation)
-
-	// Calculate latitude factor (0 at equator, 1 at poles)
-	absLat := math.Abs(latitude)
-	latitudeFactor := math.Max(0, math.Min(1, (absLat-tropicStart)/(polarStart-tropicStart)))
-
-	// Calculate polar factor (0 to 1, stronger near poles)
-	polarFactor := math.Max(0, math.Min(1, (absLat-polarStart)/(maxLatitude-polarStart)))
-
-	// Special handling for water at high latitudes
-	if elevation <= 0 {
-		// Calculate ice factor based on elevation and latitude
-		iceFactor := 0.0
-		if elevation > iceTransition {
-			iceFactor = (elevation - iceTransition) / math.Abs(iceTransition)
-		}
-
-		// Combine with latitude for final ice effect
-		iceFactor *= polarFactor
-
-		// Ice color (slightly blue-tinted white)
-		iceColor := Color{240, 245, 255}
-
-		return Color{
-			R: uint8(float64(baseColor.R)*(1-iceFactor) + float64(iceColor.R)*iceFactor),
-			G: uint8(float64(baseColor.G)*(1-iceFactor) + float64(iceColor.G)*iceFactor),
-			B: uint8(float64(baseColor.B)*(1-iceFactor) + float64(iceColor.B)*iceFactor),
-		}
-	}
-
-	// Land areas
-	if elevation > 0 {
-		// Snow color for high latitudes
-		snowColor := Color{250, 250, 250}
-
-		// Tropical enhancement factors
-		tropicalColor := Color{
-			R: uint8(math.Min(255, float64(baseColor.R)*0.9)),
-			G: uint8(math.Min(255, float64(baseColor.G)*1.1)),
-			B: uint8(math.Min(255, float64(baseColor.B)*0.8)),
-		}
-
-		// First interpolate between tropical and base color
-		midColor := Color{
-			R: uint8(float64(tropicalColor.R)*(1-latitudeFactor) + float64(baseColor.R)*latitudeFactor),
-			G: uint8(float64(tropicalColor.G)*(1-latitudeFactor) + float64(baseColor.G)*latitudeFactor),
-			B: uint8(float64(tropicalColor.B)*(1-latitudeFactor) + float64(baseColor.B)*latitudeFactor),
-		}
-
-		// Then interpolate with snow based on polar factor
-		return Color{
-			R: uint8(float64(midColor.R)*(1-polarFactor) + float64(snowColor.R)*polarFactor),
-			G: uint8(float64(midColor.G)*(1-polarFactor) + float64(snowColor.G)*polarFactor),
-			B: uint8(float64(midColor.B)*(1-polarFactor) + float64(snowColor.B)*polarFactor),
-		}
-	}
-
-	return baseColor
 }
