@@ -1,14 +1,139 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"log"
 	"math"
-	"os"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 )
+
+const (
+	port = 8080
+)
+
+type compressionWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (cw *compressionWriter) Write(b []byte) (int, error) {
+	return cw.Writer.Write(b)
+}
+
+func (cw *compressionWriter) Header() http.Header {
+	return cw.ResponseWriter.Header()
+}
+
+var (
+	// URL pattern: /{z}/{y}/{x}.png
+	tilePattern = regexp.MustCompile(`^/(\d{1,2})/(\d+)/(\d+)\.png$`)
+)
+
+type TileServer struct {
+	client *http.Client
+}
+
+func newTileServer() *TileServer {
+	return &TileServer{
+		client: &http.Client{},
+	}
+}
+
+func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Only handle GET requests
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Match URL pattern
+	matches := tilePattern.FindStringSubmatch(r.URL.Path)
+	if matches == nil {
+		http.Error(w, "Invalid tile URL", http.StatusBadRequest)
+		return
+	}
+
+	// Parse tile coordinates
+	z, _ := strconv.ParseUint(matches[1], 10, 32)
+	y, _ := strconv.ParseUint(matches[2], 10, 32)
+	x, _ := strconv.ParseUint(matches[3], 10, 32)
+
+	// Download and process tile
+	processedTile, err := s.processTile(uint32(z), uint32(y), uint32(x))
+	if err != nil {
+		log.Printf("Error processing tile %d/%d/%d: %v", z, y, x, err)
+		http.Error(w, "Error processing tile", http.StatusInternalServerError)
+		return
+	}
+
+	// Set content type and write response
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=86400") // 24h cache
+
+	w.Write(processedTile)
+}
+
+// enableCompression wraps a handler with compression support
+func enableCompression(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if client accepts compression
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Set compression headers
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Vary", "Accept-Encoding")
+
+		// Create gzip writer
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+
+		// Wrap response writer
+		wrapped := &compressionWriter{Writer: gz, ResponseWriter: w}
+
+		// Call the original handler with our wrapped writer
+		next.ServeHTTP(wrapped, r)
+	})
+}
+
+func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
+	log.Printf("z: %d y: %d x: %d\n", z, y, x)
+
+	// Download subtiles
+	tiles, err := downloadSubTiles(z, y, x)
+	if err != nil {
+		log.Printf("Error downloading subtiles: %v", err)
+		return nil, err
+	}
+
+	// Combine tiles
+	combined := compositeImages(tiles)
+
+	// Get latitudes (min and max) for the tile
+	minLat, maxLat := getTileLatitudes(z, y, x)
+
+	// Process and colorize
+	processed := processAndColorize(combined, minLat, maxLat)
+
+	// Encode processed tile
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, processed); err != nil {
+		return nil, fmt.Errorf("failed to encode processed tile: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}
 
 func processAndColorize(img image.Image, minLat, maxLat float64) *image.RGBA {
 	bounds := img.Bounds()
@@ -37,78 +162,16 @@ func processAndColorize(img image.Image, minLat, maxLat float64) *image.RGBA {
 }
 
 func main() {
-	if len(os.Args) != 5 {
-		log.Fatal("Usage: ./terrain-downloader z x y output.png")
+	server := newTileServer()
+	addr := fmt.Sprintf(":%d", port)
+
+	// Wrap the TileServer with compression
+	compressedHandler := enableCompression(server)
+
+	log.Printf("Starting terrain tile server on %s", addr)
+	log.Printf("Example URL: http://localhost:%d/0/0/0.png", port)
+
+	if err := http.ListenAndServe(addr, compressedHandler); err != nil {
+		log.Fatalf("Server failed: %v", err)
 	}
-
-	var z, y, x uint32
-	fmt.Sscanf(os.Args[1], "%d", &z)
-	fmt.Sscanf(os.Args[2], "%d", &y)
-	fmt.Sscanf(os.Args[3], "%d", &x)
-	outputPath := os.Args[4]
-
-	log.Printf("z: %d y: %d x: %d\n", z, y, x)
-
-	// Download subtiles
-	tiles, err := downloadSubTiles(z, y, x)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Combine tiles
-	combined := compositeImages(tiles)
-
-	// Get latitudes (min and max) for the tile
-	minLat, maxLat := getTileLatitudes(z, y, x)
-
-	// Process and colorize
-	processed := processAndColorize(combined, minLat, maxLat)
-
-	// Save output
-	outputFile, err := os.Create(outputPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer outputFile.Close()
-
-	if err := png.Encode(outputFile, processed); err != nil {
-		log.Fatal(err)
-	}
-}
-
-// getTileLatitudes calculates the minimum and maximum latitudes for a given tile
-func getTileLatitudes(z, y, x uint32) (minLat, maxLat float64) {
-	n := math.Pi - 2.0*math.Pi*float64(y)/math.Pow(2.0, float64(z))
-	maxLat = math.Atan(math.Sinh(n)) * 180.0 / math.Pi
-
-	n = math.Pi - 2.0*math.Pi*float64(y+1)/math.Pow(2.0, float64(z))
-	minLat = math.Atan(math.Sinh(n)) * 180.0 / math.Pi
-
-	if (x%2 != 0 && y%2 == 0) || (x%2 == 0 && y%2 != 0) {
-		return minLat, maxLat
-	}
-
-	// The other way around for odd tiles
-	return maxLat, minLat
-}
-
-// getLatitudeForPixel calculates the latitude for a specific pixel y-coordinate within a tile
-func getLatitudeForPixel(pixelY int, minLat, maxLat float64, tileSize int) float64 {
-	// Convert pixel position to normalized position within the tile (0 to 1)
-	normalizedY := float64(pixelY) / float64(tileSize-1)
-
-	// Mercator projection is non-linear, so we need to convert to radians,
-	// interpolate in projected space, then convert back
-	maxLatRad := maxLat * math.Pi / 180.0
-	minLatRad := minLat * math.Pi / 180.0
-
-	// Project to mercator y coordinate
-	maxY := math.Log(math.Tan(math.Pi/4 + maxLatRad/2))
-	minY := math.Log(math.Tan(math.Pi/4 + minLatRad/2))
-
-	// Interpolate in projected space
-	y := minY + normalizedY*(maxY-minY)
-
-	// Convert back to latitude
-	return (2*math.Atan(math.Exp(y)) - math.Pi/2) * 180.0 / math.Pi
 }
