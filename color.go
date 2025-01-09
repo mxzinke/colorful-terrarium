@@ -15,21 +15,20 @@ type ColorStop struct {
 
 // Define color palette with more natural colors and smoother transitions
 var colorPalette = []ColorStop{
-	{-1000, Color{21, 42, 103}},  // Deep ocean
-	{-500, Color{25, 68, 132}},   // Medium depth ocean
-	{-200, Color{29, 99, 171}},   // Shallow ocean
-	{-50, Color{34, 139, 204}},   // Very shallow water
-	{-1, Color{158, 220, 233}},   // Coastal water
+	{-1000, Color{29, 57, 138}},  // Deep ocean
+	{-500, Color{31, 95, 168}},   // Medium depth ocean
+	{-200, Color{38, 116, 184}},  // Shallow ocean
+	{-50, Color{84, 154, 207}},   // Very shallow water
 	{0, Color{172, 208, 165}},    // Coastline
-	{50, Color{148, 191, 139}},   // Coastal plains
-	{200, Color{168, 198, 143}},  // Lowlands
-	{400, Color{189, 204, 150}},  // Hills
-	{700, Color{199, 193, 154}},  // Low mountains
-	{1000, Color{195, 182, 157}}, // Medium mountains
-	{1500, Color{168, 154, 134}}, // High mountains
-	{2000, Color{145, 123, 111}}, // Alpine
-	{2500, Color{215, 210, 203}}, // Snow line
-	{3000, Color{250, 250, 250}}, // Permanent snow
+	{100, Color{148, 191, 139}},  // Coastal plains
+	{300, Color{168, 198, 143}},  // Lowlands
+	{600, Color{189, 204, 150}},  // Hills
+	{1000, Color{195, 182, 157}}, // Low mountains
+	{1500, Color{168, 154, 134}}, // Medium mountains
+	{2000, Color{137, 125, 107}}, // High mountains
+	{2500, Color{130, 115, 95}},  // Very high mountains
+	{3000, Color{210, 200, 190}}, // Alpine/Snow transition
+	{4000, Color{255, 255, 255}}, // Permanent snow
 }
 
 // getColorForElevation returns interpolated color for given elevation
@@ -66,15 +65,27 @@ func getColorForElevation(elevation float64) Color {
 		}
 	}
 
-	// Calculate interpolation factor with smoothing
+	// Calculate base interpolation factor
 	factor := (elevation - lowStop.Elevation) / (highStop.Elevation - lowStop.Elevation)
-	// Apply subtle smoothing using sine curve
-	factor = (1 - math.Cos(factor*math.Pi)) / 2
 
-	// Interpolate colors
+	// Apply smoothstep function for smoother transitions
+	factor = factor * factor * (3 - 2*factor)
+
+	// Ensure factor stays within bounds
+	factor = math.Max(0, math.Min(1, factor))
+
+	// Calculate each color component separately with gamma correction
+	gamma := 2.2
+	r := math.Pow(factor*math.Pow(float64(highStop.Color.R)/255, gamma)+
+		(1-factor)*math.Pow(float64(lowStop.Color.R)/255, gamma), 1/gamma) * 255
+	g := math.Pow(factor*math.Pow(float64(highStop.Color.G)/255, gamma)+
+		(1-factor)*math.Pow(float64(lowStop.Color.G)/255, gamma), 1/gamma) * 255
+	b := math.Pow(factor*math.Pow(float64(highStop.Color.B)/255, gamma)+
+		(1-factor)*math.Pow(float64(lowStop.Color.B)/255, gamma), 1/gamma) * 255
+
 	return Color{
-		R: uint8(math.Round(float64(lowStop.Color.R) + factor*float64(highStop.Color.R-lowStop.Color.R))),
-		G: uint8(math.Round(float64(lowStop.Color.G) + factor*float64(highStop.Color.G-lowStop.Color.G))),
-		B: uint8(math.Round(float64(lowStop.Color.B) + factor*float64(highStop.Color.B-lowStop.Color.B))),
+		R: uint8(math.Round(math.Max(0, math.Min(255, r)))),
+		G: uint8(math.Round(math.Max(0, math.Min(255, g)))),
+		B: uint8(math.Round(math.Max(0, math.Min(255, b)))),
 	}
 }
