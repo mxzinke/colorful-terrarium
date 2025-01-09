@@ -62,7 +62,7 @@ func downloadTile(coord TileCoord) (image.Image, error) {
 	return nil, fmt.Errorf("failed to download tile after %d attempts", maxRetries)
 }
 
-func downloadSubTiles(parentZ, parentX, parentY uint32) ([]TileImage, error) {
+func downloadSubTiles(parentZ, parentY, parentX uint32) ([]TileImage, error) {
 	childZ := parentZ + 1
 	baseChildX := parentX * 2
 	baseChildY := parentY * 2
