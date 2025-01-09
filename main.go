@@ -16,9 +16,7 @@ func processAndColorize(img image.Image, minLat, maxLat float64) *image.RGBA {
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		// Calculate precise latitude for this pixel row
-		latitude := getLatitudeForPixel(y, minLat, maxLat, bounds.Max.Y)
-
-		log.Printf("%d => latitude: %f\n", y, latitude)
+		latitude := math.Abs(getLatitudeForPixel(y, minLat, maxLat, bounds.Max.Y))
 
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			r, g, b, _ := img.At(x, y).RGBA()
