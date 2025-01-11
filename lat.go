@@ -5,18 +5,13 @@ import (
 )
 
 // getTileLatitudes calculates the minimum and maximum latitudes for a given tile
-func getTileLatitudes(z, y, x uint32) (minLat, maxLat float64) {
+func getTileLatitudes(z, y uint32) (minLat, maxLat float64) {
 	n := math.Pi - 2.0*math.Pi*float64(y)/math.Pow(2.0, float64(z))
 	maxLat = math.Atan(math.Sinh(n)) * 180.0 / math.Pi
 
 	n = math.Pi - 2.0*math.Pi*float64(y+1)/math.Pow(2.0, float64(z))
 	minLat = math.Atan(math.Sinh(n)) * 180.0 / math.Pi
 
-	if (x%2 != 0 && y%2 == 0) || (x%2 == 0 && y%2 != 0) {
-		return minLat, maxLat
-	}
-
-	// The other way around for odd tiles
 	return maxLat, minLat
 }
 

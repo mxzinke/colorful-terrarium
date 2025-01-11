@@ -73,7 +73,7 @@ func getColorForElevationAndLatitude(elevation, latitude float64) Color {
 
 	// Get colors from both palette
 
-	if elevation < 0 {
+	if elevation <= 0 {
 		return getColorFromPalette(elevation, normalPalette)
 	}
 

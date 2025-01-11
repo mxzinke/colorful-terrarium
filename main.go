@@ -136,7 +136,7 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	combined := compositeImages(tiles)
 
 	// Get latitudes (min and max) for the tile
-	minLat, maxLat := getTileLatitudes(z, y, x)
+	minLat, maxLat := getTileLatitudes(z, x)
 
 	// Process and colorize
 	processed := processAndColorize(combined, minLat, maxLat)
