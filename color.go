@@ -23,9 +23,9 @@ type ColorPalette struct {
 var (
 	normalPalette = ColorPalette{
 		stops: []ColorStop{
-			{-10000, Color{38, 116, 184}}, // Shallow ocean
-			{-1000, Color{65, 146, 208}},  // Deep ocean
-			{-500, Color{89, 171, 227}},   // Medium depth ocean
+			{-10000, Color{65, 146, 208}}, // Shallow ocean
+			{-1000, Color{87, 172, 230}},  // Deep ocean
+			{-500, Color{96, 178, 235}},   // Medium depth ocean
 			{-200, Color{109, 187, 239}},  // Shallow ocean
 			{-50, Color{170, 218, 252}},   // Very shallow water
 			{-1, Color{191, 228, 252}},    // Coastal water
@@ -45,9 +45,9 @@ var (
 
 	polarPalette = ColorPalette{
 		stops: []ColorStop{
-			{-10000, Color{38, 116, 184}}, // Shallow ocean
-			{-1000, Color{65, 146, 208}},  // Deep ocean
-			{-500, Color{89, 171, 227}},   // Medium depth ocean
+			{-10000, Color{65, 146, 208}}, // Shallow ocean
+			{-1000, Color{87, 172, 230}},  // Deep ocean
+			{-500, Color{96, 178, 235}},   // Medium depth ocean
 			{-200, Color{109, 187, 239}},  // Shallow ocean
 			{-50, Color{170, 218, 252}},   // Very shallow water
 			{-1, Color{191, 228, 252}},    // Coastal water
@@ -78,8 +78,7 @@ func getColorForElevationAndLatitude(elevation, latitude float64) Color {
 	}
 
 	normalColor := getColorFromPalette(elevation*snowThresholdFactor, normalPalette)
-
-	polarColor := getColorFromPalette(elevation, polarPalette)
+	polarColor := getColorFromPalette(elevation*snowThresholdFactor, polarPalette)
 
 	// Interpolate between normal and polar colors
 	return Color{

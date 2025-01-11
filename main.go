@@ -184,7 +184,7 @@ func main() {
 	compressedHandler := enableCompression(server)
 
 	log.Printf("Starting terrain tile server on %s", addr)
-	log.Printf("Example URL: http://localhost:%d/0/0/0.png", port)
+	log.Printf("Tiles Server Format: http://localhost:%d/{z}/{y}/{x}.png", port)
 
 	if err := http.ListenAndServe(addr, compressedHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)
