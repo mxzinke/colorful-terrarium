@@ -28,8 +28,9 @@ var (
 			{-500, Color{96, 178, 235}},   // Medium depth ocean
 			{-200, Color{109, 187, 239}},  // Shallow ocean
 			{-50, Color{170, 218, 252}},   // Very shallow water
-			{-1, Color{191, 228, 252}},    // Coastal water
-			{0, Color{172, 208, 165}},     // Coastline
+			{0, Color{191, 228, 252}},     // Coastal water
+			{0.1, Color{235, 230, 185}},   // Beach
+			{3, Color{172, 208, 165}},     // Coastline
 			{50, Color{148, 191, 139}},    // Coastal plains
 			{100, Color{148, 191, 139}},   // Coastal plains
 			{300, Color{168, 198, 143}},   // Lowlands
@@ -50,8 +51,8 @@ var (
 			{-500, Color{96, 178, 235}},   // Medium depth ocean
 			{-200, Color{109, 187, 239}},  // Shallow ocean
 			{-50, Color{170, 218, 252}},   // Very shallow water
-			{-1, Color{191, 228, 252}},    // Coastal water
-			{0, Color{172, 208, 165}},     // Coastline
+			{0, Color{191, 228, 252}},     // Coastal water
+			{1, Color{172, 208, 165}},     // Coastline
 			{50, Color{250, 250, 250}},    // Snow plains
 			{200, Color{245, 245, 245}},   // Snow lowlands
 			{400, Color{240, 240, 240}},   // Snow hills
@@ -69,7 +70,7 @@ var (
 func getColorForElevationAndLatitude(elevation, latitude float64) Color {
 	// Calculate how "polar" the location is (0 = arctic circle, 1 = poles)
 	polarFactor := math.Min(math.Max((latitude-66)/(80-66), 0), 1)
-	snowThresholdFactor := math.Min(math.Max(latitude/66, 0), 1) / 0.65
+	snowThresholdFactor := math.Min(math.Max(latitude/66, 0.1), 1) / 0.65
 
 	// Get colors from both palette
 

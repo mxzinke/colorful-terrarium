@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/mxzinke/colorful-terrarium/terrain"
 )
 
 const (
@@ -139,7 +141,7 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	minLat, maxLat := getTileLatitudes(z, x)
 
 	// Process and colorize
-	processed := processAndColorize(combined, minLat, maxLat)
+	processed := processAndColorize(combined, minLat, maxLat, z)
 
 	// Encode processed tile
 	var buf bytes.Buffer
@@ -150,25 +152,24 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func processAndColorize(img image.Image, minLat, maxLat float64) *image.RGBA {
+func processAndColorize(img image.Image, minLat, maxLat float64, z uint32) *image.RGBA {
 	bounds := img.Bounds()
 	output := image.NewRGBA(bounds)
 
+	elevationMap := terrain.NewElevationMap(img)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		// Calculate precise latitude for this pixel row
 		latitude := math.Abs(getLatitudeForPixel(y, minLat, maxLat, bounds.Max.Y))
 
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
+			elevation := elevationMap.GetElevation(x, y)
 
-			r8 := uint8(r >> 8)
-			g8 := uint8(g >> 8)
-			b8 := uint8(b >> 8)
+			smoothedElev := smoothCoastlines(elevation, x, y, elevationMap, z)
 
-			// Calculate base elevation and apply latitude-based offset
-			elevation := float64(r8)*256 + float64(g8) + float64(b8)/256 - 32768
-
-			newColor := getColorForElevationAndLatitude(elevation, latitude)
+			newColor := getColorForElevationAndLatitude(
+				smoothedElev,
+				latitude,
+			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}
 	}
