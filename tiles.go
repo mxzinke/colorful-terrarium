@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const baseURL = "https://terrain.mapstudio.ai/%d/%d/%d.png"
+const baseURL = "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/%d/%d/%d.png"
 const tileSize = 256 // Standard tile size
 
 type TileCoord struct {

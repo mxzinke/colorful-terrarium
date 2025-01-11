@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	port = 8080
+	port    = 8080
+	maxZoom = 14
 )
 
 type compressionWriter struct {
@@ -75,6 +76,11 @@ func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(processedTile) == 0 {
+		http.Error(w, "Tile not found", http.StatusNotFound)
+		return
+	}
+
 	// Set content type and write response
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "public, max-age=86400") // 24h cache
@@ -108,6 +114,15 @@ func enableCompression(next http.Handler) http.Handler {
 }
 
 func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
+	if z > maxZoom {
+		return []byte{}, nil
+	}
+
+	maxScale := uint32(math.Pow(2.0, float64(z)))
+	if y >= maxScale || x >= maxScale {
+		return []byte{}, nil
+	}
+
 	log.Printf("z: %d y: %d x: %d\n", z, y, x)
 
 	// Download subtiles
@@ -128,8 +143,8 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 
 	// Encode processed tile
 	var buf bytes.Buffer
-	if err := png.Encode(&buf, processed); err != nil {
-		return nil, fmt.Errorf("failed to encode processed tile: %w", err)
+	if err := encodePNGOptimized(&buf, processed); err != nil {
+		return []byte{}, fmt.Errorf("failed to encode processed tile: %w", err)
 	}
 
 	return buf.Bytes(), nil
@@ -174,4 +189,13 @@ func main() {
 	if err := http.ListenAndServe(addr, compressedHandler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+// optimizedPNGEncoder creates a PNG encoder with optimal compression settings
+func encodePNGOptimized(w io.Writer, img image.Image) error {
+	encoder := &png.Encoder{
+		CompressionLevel: png.BestCompression, // Maximum compression
+		BufferPool:       nil,                 // Use default buffer pool
+	}
+	return encoder.Encode(w, img)
 }
