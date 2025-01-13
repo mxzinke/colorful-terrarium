@@ -163,36 +163,41 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, img image.Image, tileB
 	bounds := img.Bounds()
 	output := image.NewRGBA(bounds)
 
-	elevationTime := time.Now()
 	elevationMap := terrain.NewElevationMap(img)
-	log.Printf("Creating elevation map, %s", time.Since(elevationTime))
 
-	processTime := time.Now()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		// Calculate precise latitude for this pixel row
-		latitude := tileBounds.GetPixelLat(y)
+		baseLatitude := tileBounds.GetPixelLat(y)
+		latitude := math.Abs(baseLatitude)
+
+		// Calculate polar factor (whether the snow is in the polar region), respecting the earth's tilt
+		polarFactor := 0.0
+		if baseLatitude < -1*(polarStartLatitude-earthTilt) {
+			polarFactor = math.Min(math.Max((latitude-(polarStartLatitude-earthTilt))/((polarAbsoluteLatitude-earthTilt)-(polarStartLatitude-earthTilt)), 0), 1)
+		} else if baseLatitude > (polarStartLatitude + earthTilt) {
+			polarFactor = math.Min(math.Max((latitude-(polarStartLatitude+earthTilt))/((polarAbsoluteLatitude+earthTilt)-(polarStartLatitude+earthTilt)), 0), 1)
+		}
+
+		// Calculate snow threshold factor (bringing down the elevation of the snow)
+		snowThresholdFactor := math.Min(math.Max(latitude/polarStartLatitude, lowestSnowFactor), 1) / snowBaseFactor
 
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			longitude := tileBounds.GetPixelLng(x)
 
-			isInIce := geoCoverage.IsPointInIce(longitude, latitude)
-			if isInIce {
-				output.Set(x, y, color.RGBA{255, 255, 255, 255})
-				continue
-			}
+			isInIce := geoCoverage.IsPointInIce(longitude, baseLatitude)
 
 			elevation := elevationMap.GetElevation(x, y)
 			smoothedElev := smoothCoastlines(elevation, x, y, elevationMap, z)
 
-			newColor := getColorForElevationAndLatitude(
-				smoothedElev,
-				latitude,
+			newColor := getColorForElevationAndTerrain(
+				smoothedElev*snowThresholdFactor,
+				polarFactor,
 				isInIce,
 			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}
 	}
-	log.Printf("Processing tile, %s", time.Since(processTime))
+
 	return output
 }
 

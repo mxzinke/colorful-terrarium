@@ -45,6 +45,10 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 	}, nil
 }
 
+func (gc *GeoCoverage) HasIceInBounds(bounds orb.Bound) bool {
+	return gc.ice.IsPointInPolygons(bounds.Min) || gc.ice.IsPointInPolygons(bounds.Max)
+}
+
 func (gc *GeoCoverage) IsPointInIce(lon, lat float64) bool {
 	return gc.ice.IsPointInPolygons(orb.Point{lon, lat})
 }

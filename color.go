@@ -20,6 +20,14 @@ type ColorPalette struct {
 	stops []ColorStop
 }
 
+const (
+	polarStartLatitude    = 64
+	polarAbsoluteLatitude = 70
+	earthTilt             = 6
+	snowBaseFactor        = 0.65
+	lowestSnowFactor      = 0.1
+)
+
 var (
 	normalPalette = ColorPalette{
 		stops: []ColorStop{
@@ -37,62 +45,45 @@ var (
 			{600, Color{189, 204, 150}},   // Hills
 			{1000, Color{195, 182, 157}},  // Low mountains
 			{1500, Color{168, 154, 134}},  // Medium mountains
-			{2000, Color{137, 125, 107}},  // High mountains
+			{2000, Color{148, 144, 139}},  // High mountains
 			{2500, Color{130, 115, 95}},   // Very high mountains
-			{3000, Color{210, 200, 190}},  // Alpine/Snow transition
+			{3000, Color{240, 240, 240}},  // Alpine/Snow transition
 			{4000, Color{255, 255, 255}},  // Permanent snow
 		},
 	}
 
 	polarPalette = ColorPalette{
 		stops: []ColorStop{
-			{-10000, Color{65, 146, 208}}, // Shallow ocean
-			{-1000, Color{87, 172, 230}},  // Deep ocean
-			{-500, Color{96, 178, 235}},   // Medium depth ocean
-			{-200, Color{109, 187, 239}},  // Shallow ocean
-			{-50, Color{170, 218, 252}},   // Very shallow water
-			{1, Color{191, 228, 252}},     // Coastal water
-			{3, Color{172, 208, 165}},     // Coastline
-			{50, Color{250, 250, 250}},    // Snow plains
-			{200, Color{245, 245, 245}},   // Snow lowlands
-			{400, Color{240, 240, 240}},   // Snow hills
-			{700, Color{235, 235, 235}},   // Snow mountains
-			{1000, Color{230, 230, 230}},  // Deep snow mountains
-			{1500, Color{225, 225, 225}},  // High snow
-			{2000, Color{220, 220, 220}},  // Alpine snow
-			{2500, Color{215, 215, 215}},  // Permanent snow
-			{3000, Color{210, 210, 210}},  // High permanent snow
+			{500, Color{245, 251, 255}},  // Iced Water
+			{0, Color{245, 248, 250}},    // Iced Coastline
+			{50, Color{250, 250, 250}},   // Snow plains
+			{200, Color{245, 245, 245}},  // Snow lowlands
+			{400, Color{240, 240, 240}},  // Snow hills
+			{700, Color{242, 242, 245}},  // Snow mountains
+			{1000, Color{227, 227, 227}}, // Deep snow mountains
+			{1500, Color{235, 235, 235}}, // High snow
+			{2000, Color{238, 238, 238}}, // Alpine snow
+			{2500, Color{242, 242, 242}}, // Permanent snow
+			{3000, Color{255, 255, 255}}, // High permanent snow
 		},
 	}
 )
 
-// getColorForElevationAndLatitude returns interpolated color based on elevation and latitude
-func getColorForElevationAndLatitude(elevation, baseLatitude float64, isInIce bool) Color {
-	if elevation <= 0 && !isInIce {
+// getColorForElevationAndTerrain returns interpolated color based on elevation and latitude
+func getColorForElevationAndTerrain(elevation, polarFactor float64, hasIce bool) Color {
+	if elevation <= 0 && !hasIce {
 		return getColorFromPalette(elevation, normalPalette)
 	}
 
-	if elevation <= 100 && isInIce {
-		return Color{255, 255, 255}
-	}
-
-	latitude := math.Abs(baseLatitude)
-
-	// Calculate how "polar" the location is (0 = arctic circle, 1 = poles)
-	polarFactor := math.Min(math.Max((latitude-66)/(80-66), 0), 1)
-	snowThresholdFactor := math.Min(math.Max(latitude/66, 0.1), 1) / 0.65
-
-	if baseLatitude < -66 {
-		polarFactor = 1
-	}
-
-	if isInIce {
-		snowThresholdFactor += 0.2
+	// If the elevation is below 100 and the location is in ice, use the polar palette
+	if hasIce {
+		polarColor := getColorFromPalette(elevation, polarPalette)
+		return polarColor
 	}
 
 	// Get colors from both palette
-	normalColor := getColorFromPalette(elevation*snowThresholdFactor, normalPalette)
-	polarColor := getColorFromPalette(elevation*snowThresholdFactor, polarPalette)
+	normalColor := getColorFromPalette(elevation, normalPalette)
+	polarColor := getColorFromPalette(elevation, polarPalette)
 
 	// Interpolate between normal and polar colors
 	return Color{

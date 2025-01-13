@@ -19,7 +19,7 @@ func smoothCoastlines(elevation float64, x, y int, elevMap *terrain.ElevationMap
 	}
 
 	// Calculate pattern size based on zoom level
-	patternSize := int(math.Pow(2, float64(zoom-7)))
+	patternSize := int(math.Pow(2, math.Max(float64(zoom-7), 0)))
 
 	// Quick check for coastline using neighborhood stats
 	landCount, waterCount, hasEdge := elevMap.GetNeighborhoodStats(x, y, patternSize)
