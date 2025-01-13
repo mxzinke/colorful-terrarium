@@ -51,8 +51,8 @@ var (
 			{-500, Color{96, 178, 235}},   // Medium depth ocean
 			{-200, Color{109, 187, 239}},  // Shallow ocean
 			{-50, Color{170, 218, 252}},   // Very shallow water
-			{0, Color{191, 228, 252}},     // Coastal water
-			{1, Color{172, 208, 165}},     // Coastline
+			{1, Color{191, 228, 252}},     // Coastal water
+			{3, Color{172, 208, 165}},     // Coastline
 			{50, Color{250, 250, 250}},    // Snow plains
 			{200, Color{245, 245, 245}},   // Snow lowlands
 			{400, Color{240, 240, 240}},   // Snow hills
@@ -67,17 +67,30 @@ var (
 )
 
 // getColorForElevationAndLatitude returns interpolated color based on elevation and latitude
-func getColorForElevationAndLatitude(elevation, latitude float64) Color {
+func getColorForElevationAndLatitude(elevation, baseLatitude float64, isInIce bool) Color {
+	if elevation <= 0 && !isInIce {
+		return getColorFromPalette(elevation, normalPalette)
+	}
+
+	if elevation <= 100 && isInIce {
+		return Color{255, 255, 255}
+	}
+
+	latitude := math.Abs(baseLatitude)
+
 	// Calculate how "polar" the location is (0 = arctic circle, 1 = poles)
 	polarFactor := math.Min(math.Max((latitude-66)/(80-66), 0), 1)
 	snowThresholdFactor := math.Min(math.Max(latitude/66, 0.1), 1) / 0.65
 
-	// Get colors from both palette
-
-	if elevation <= 0 {
-		return getColorFromPalette(elevation, normalPalette)
+	if baseLatitude < -66 {
+		polarFactor = 1
 	}
 
+	if isInIce {
+		snowThresholdFactor += 0.2
+	}
+
+	// Get colors from both palette
 	normalColor := getColorFromPalette(elevation*snowThresholdFactor, normalPalette)
 	polarColor := getColorFromPalette(elevation*snowThresholdFactor, polarPalette)
 

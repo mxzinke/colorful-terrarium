@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mxzinke/colorful-terrarium/terrain"
 )
@@ -42,12 +43,14 @@ var (
 )
 
 type TileServer struct {
-	client *http.Client
+	client      *http.Client
+	geoCoverage *terrain.GeoCoverage
 }
 
-func newTileServer() *TileServer {
+func newTileServer(geoCoverage *terrain.GeoCoverage) *TileServer {
 	return &TileServer{
-		client: &http.Client{},
+		client:      &http.Client{},
+		geoCoverage: geoCoverage,
 	}
 }
 
@@ -70,13 +73,19 @@ func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	y, _ := strconv.ParseUint(matches[2], 10, 32)
 	x, _ := strconv.ParseUint(matches[3], 10, 32)
 
+	log.Printf("Requesting tile %d/%d/%d\n", z, y, x)
+
 	// Download and process tile
+	startTime := time.Now()
 	processedTile, err := s.processTile(uint32(z), uint32(y), uint32(x))
 	if err != nil {
 		log.Printf("Error processing tile %d/%d/%d: %v", z, y, x, err)
 		http.Error(w, "Error processing tile", http.StatusInternalServerError)
 		return
 	}
+	elapsed := time.Since(startTime)
+
+	log.Printf("Processed tile %d/%d/%d in %s", z, y, x, elapsed)
 
 	if len(processedTile) == 0 {
 		http.Error(w, "Tile not found", http.StatusNotFound)
@@ -125,8 +134,6 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 		return []byte{}, nil
 	}
 
-	log.Printf("z: %d y: %d x: %d\n", z, y, x)
-
 	// Download subtiles
 	tiles, err := downloadSubTiles(z, y, x)
 	if err != nil {
@@ -138,10 +145,10 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	combined := compositeImages(tiles)
 
 	// Get latitudes (min and max) for the tile
-	minLat, maxLat := getTileLatitudes(z, x)
+	bounds := CreateTileBounds(z, y, x, combined.Bounds().Max.X)
 
 	// Process and colorize
-	processed := processAndColorize(combined, minLat, maxLat, z)
+	processed := processAndColorize(s.geoCoverage, combined, bounds, z)
 
 	// Encode processed tile
 	var buf bytes.Buffer
@@ -152,33 +159,50 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func processAndColorize(img image.Image, minLat, maxLat float64, z uint32) *image.RGBA {
+func processAndColorize(geoCoverage *terrain.GeoCoverage, img image.Image, tileBounds *TileBounds, z uint32) *image.RGBA {
 	bounds := img.Bounds()
 	output := image.NewRGBA(bounds)
 
+	elevationTime := time.Now()
 	elevationMap := terrain.NewElevationMap(img)
+	log.Printf("Creating elevation map, %s", time.Since(elevationTime))
+
+	processTime := time.Now()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		// Calculate precise latitude for this pixel row
-		latitude := math.Abs(getLatitudeForPixel(y, minLat, maxLat, bounds.Max.Y))
+		latitude := tileBounds.GetPixelLat(y)
 
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			elevation := elevationMap.GetElevation(x, y)
+			longitude := tileBounds.GetPixelLng(x)
 
+			isInIce := geoCoverage.IsPointInIce(longitude, latitude)
+			if isInIce {
+				output.Set(x, y, color.RGBA{255, 255, 255, 255})
+				continue
+			}
+
+			elevation := elevationMap.GetElevation(x, y)
 			smoothedElev := smoothCoastlines(elevation, x, y, elevationMap, z)
 
 			newColor := getColorForElevationAndLatitude(
 				smoothedElev,
 				latitude,
+				isInIce,
 			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}
 	}
-
+	log.Printf("Processing tile, %s", time.Since(processTime))
 	return output
 }
 
 func main() {
-	server := newTileServer()
+	geoCoverage, err := terrain.LoadGeoCoverage()
+	if err != nil {
+		log.Fatalf("Failed to load geo coverage: %v", err)
+	}
+
+	server := newTileServer(geoCoverage)
 	addr := fmt.Sprintf(":%d", port)
 
 	// Wrap the TileServer with compression
