@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"image"
 	"image/color"
@@ -75,9 +76,11 @@ func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Requesting tile %d/%d/%d\n", z, y, x)
 
+	ctx := r.Context()
+
 	// Download and process tile
 	startTime := time.Now()
-	processedTile, err := s.processTile(uint32(z), uint32(y), uint32(x))
+	processedTile, err := s.processTile(ctx, uint32(z), uint32(y), uint32(x))
 	if err != nil {
 		log.Printf("Error processing tile %d/%d/%d: %v", z, y, x, err)
 		http.Error(w, "Error processing tile", http.StatusInternalServerError)
@@ -95,6 +98,8 @@ func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Set content type and write response
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Cache-Control", "public, max-age=86400") // 24h cache
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET")
 
 	w.Write(processedTile)
 }
@@ -124,7 +129,7 @@ func enableCompression(next http.Handler) http.Handler {
 	})
 }
 
-func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
+func (s *TileServer) processTile(ctx context.Context, z, y, x uint32) ([]byte, error) {
 	if z > maxZoom {
 		return []byte{}, nil
 	}
@@ -135,7 +140,7 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	}
 
 	// Download subtiles
-	tileMap, err := terrain.GetElevationMapFromGeoTIFF(terrain.TileCoord{Z: z, Y: y, X: x})
+	tileMap, err := terrain.GetElevationMapFromGeoTIFF(ctx, terrain.TileCoord{Z: z, Y: y, X: x})
 	if err != nil {
 		return nil, err
 	}
@@ -143,8 +148,16 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	// Get latitudes (min and max) for the tile
 	bounds := CreateTileBounds(z, y, x, tileMap.TileSize)
 
+	if err := ctx.Err(); err != nil {
+		return []byte{}, err
+	}
+
 	// Process and colorize
 	processed := processAndColorize(s.geoCoverage, tileMap, bounds, z)
+
+	if err := ctx.Err(); err != nil {
+		return []byte{}, err
+	}
 
 	// Encode processed tile
 	var buf bytes.Buffer
@@ -180,17 +193,18 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.Eleva
 			isInIce := geoCoverage.IsPointInIce(longitude, baseLatitude)
 			isInLakes := geoCoverage.IsPointInLakes(longitude, baseLatitude)
 
-			if isInLakes {
+			elevation := tileMap.GetElevation(x, y)
+			if isInLakes && elevation > 0 {
+				elevation = 0
 				tileMap.ModifyElevation(x, y, 0)
 			}
-
-			elevation := tileMap.GetElevation(x, y)
 			smoothedElev := smoothCoastlines(elevation, x, y, tileMap, zoom)
 
 			newColor := getColorForElevationAndTerrain(
 				float32(smoothedElev*snowThresholdFactor),
 				float32(polarFactor),
 				isInIce,
+				geoCoverage.IsPointInDeserts(longitude, baseLatitude),
 			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}

@@ -11,8 +11,9 @@ import (
 )
 
 type GeoCoverage struct {
-	ice   polygon.SpatialIndexer
-	lakes polygon.SpatialIndexer
+	ice     polygon.SpatialIndexer
+	lakes   polygon.SpatialIndexer
+	deserts polygon.SpatialIndexer
 }
 
 func LoadGeoCoverage() (*GeoCoverage, error) {
@@ -20,8 +21,9 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 
 	var ice polygon.SpatialIndexer
 	var lakes polygon.SpatialIndexer
+	var deserts polygon.SpatialIndexer
 
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		val, err := loadIndexer("./glaciers.geojson")
 		if err != nil {
@@ -40,11 +42,21 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 		wg.Done()
 	}()
 
+	go func() {
+		val, err := loadIndexer("./deserts.geojson")
+		if err != nil {
+			log.Fatal(err)
+		}
+		deserts = val
+		wg.Done()
+	}()
+
 	wg.Wait()
 
 	return &GeoCoverage{
-		ice:   ice,
-		lakes: lakes,
+		ice:     ice,
+		lakes:   lakes,
+		deserts: deserts,
 	}, nil
 }
 
@@ -84,4 +96,8 @@ func (gc *GeoCoverage) IsPointInIce(lon, lat float64) bool {
 
 func (gc *GeoCoverage) IsPointInLakes(lon, lat float64) bool {
 	return gc.lakes.IsPointInPolygons(orb.Point{lon, lat})
+}
+
+func (gc *GeoCoverage) IsPointInDeserts(lon, lat float64) bool {
+	return gc.deserts.IsPointInPolygons(orb.Point{lon, lat})
 }

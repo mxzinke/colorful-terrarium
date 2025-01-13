@@ -2,6 +2,7 @@ package terrain
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image/color"
 	"io"
@@ -12,19 +13,24 @@ import (
 
 const geotiffSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/geotiff/%d/%d/%d.tif"
 
-func GetElevationMapFromGeoTIFF(coord TileCoord) (*ElevationMap, error) {
+func GetElevationMapFromGeoTIFF(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
 	// GeoTIFF fetching...
-	resp, err := http.Get(fmt.Sprintf(geotiffSourceURL, coord.Z, coord.Y, coord.X))
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(geotiffSourceURL, coord.Z, coord.Y, coord.X), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request for GeoTIFF: %w", err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download GeoTIFF: %w", err)
 	}
-	defer resp.Body.Close()
+	defer res.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP error %d", resp.StatusCode)
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error %d", res.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read TIFF: %v", err)
 	}

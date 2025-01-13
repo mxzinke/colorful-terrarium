@@ -67,10 +67,24 @@ var (
 			{3000, Color{255, 255, 255}}, // High permanent snow
 		},
 	}
+
+	desertPalette = ColorPalette{
+		stops: []ColorStop{
+			{-10000, Color{65, 146, 208}}, // Shallow ocean
+			{-1000, Color{87, 172, 230}},  // Deep ocean
+			{-500, Color{96, 178, 235}},   // Medium depth ocean
+			{-200, Color{109, 187, 239}},  // Shallow ocean
+			{-50, Color{170, 218, 252}},   // Very shallow water
+			{0, Color{191, 228, 252}},     // Coastal water
+			{0.1, Color{235, 230, 185}},   // Beach
+			{300, Color{209, 199, 159}},   // Lowlands
+			{1000, Color{189, 170, 134}},  // Hills
+		},
+	}
 )
 
 // getColorForElevationAndTerrain returns interpolated color based on elevation and latitude
-func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool) Color {
+func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool, hasDeserts bool) Color {
 	if elevation <= 0 && !hasIce {
 		return getColorFromPalette(elevation, normalPalette)
 	}
@@ -79,6 +93,11 @@ func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool)
 	if hasIce {
 		polarColor := getColorFromPalette(elevation, polarPalette)
 		return polarColor
+	}
+
+	if hasDeserts {
+		desertColor := getColorFromPalette(elevation, desertPalette)
+		return desertColor
 	}
 
 	// Get colors from both palette

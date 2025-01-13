@@ -2,6 +2,7 @@ package terrain
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/png"
@@ -15,8 +16,8 @@ import (
 const terrariumSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/%d/%d/%d.png"
 const tileSize = 256 // Standard tile size
 
-func GetElevationMapForTerrarium(coord TileCoord) (*ElevationMap, error) {
-	tiles, err := downloadSubTiles(coord.Z, coord.Y, coord.X)
+func GetElevationMapForTerrarium(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
+	tiles, err := downloadSubTiles(ctx, coord.Z, coord.Y, coord.X)
 	if err != nil {
 		log.Printf("Error downloading subtiles: %v", err)
 		return nil, err
@@ -27,7 +28,7 @@ func GetElevationMapForTerrarium(coord TileCoord) (*ElevationMap, error) {
 	return newElevationMapFromTerrarium(img), nil
 }
 
-func downloadTile(coord TileCoord) (image.Image, error) {
+func downloadTile(ctx context.Context, coord TileCoord) (image.Image, error) {
 	maxRetries := 3
 	retryDelay := 200 * time.Millisecond
 
@@ -38,20 +39,26 @@ func downloadTile(coord TileCoord) (image.Image, error) {
 		}
 
 		url := fmt.Sprintf(terrariumSourceURL, coord.Z, coord.Y, coord.X)
-		resp, err := http.Get(url)
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			log.Printf("Download error (creating request) (attempt %d): %v", attempt+1, err)
+			continue
+		}
+
+		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			log.Printf("Download error (attempt %d): %v", attempt+1, err)
 			continue
 		}
-		defer resp.Body.Close()
+		defer res.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("HTTP error %d (attempt %d)", resp.StatusCode, attempt+1)
+		if res.StatusCode != http.StatusOK {
+			log.Printf("HTTP error %d (attempt %d)", res.StatusCode, attempt+1)
 			continue
 		}
 
 		// Read response body
-		body, err := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(res.Body)
 		if err != nil {
 			log.Printf("Read error (attempt %d): %v", attempt+1, err)
 			continue
@@ -70,7 +77,7 @@ func downloadTile(coord TileCoord) (image.Image, error) {
 	return nil, fmt.Errorf("failed to download tile after %d attempts", maxRetries)
 }
 
-func downloadSubTiles(parentZ, parentY, parentX uint32) ([]tileImage, error) {
+func downloadSubTiles(ctx context.Context, parentZ, parentY, parentX uint32) ([]tileImage, error) {
 	childZ := parentZ + 1
 	baseChildX := parentX * 2
 	baseChildY := parentY * 2
@@ -90,7 +97,7 @@ func downloadSubTiles(parentZ, parentY, parentX uint32) ([]tileImage, error) {
 					X: baseChildX + offsetX,
 					Y: baseChildY + offsetY,
 				}
-				img, err := downloadTile(coord)
+				img, err := downloadTile(ctx, coord)
 				if err != nil {
 					errors <- err
 					return
