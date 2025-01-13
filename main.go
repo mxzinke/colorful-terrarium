@@ -135,7 +135,7 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	}
 
 	// Download subtiles
-	tileMap, err := terrain.GetElevationMapForTile(terrain.TileCoord{Z: z, Y: y, X: x})
+	tileMap, err := terrain.GetElevationMapFromGeoTIFF(terrain.TileCoord{Z: z, Y: y, X: x})
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.Eleva
 		}
 
 		// Calculate snow threshold factor (bringing down the elevation of the snow)
-		snowThresholdFactor := math.Min(math.Max(latitude/polarStartLatitude, lowestSnowFactor), 1) / snowBaseFactor
+		snowThresholdFactor := float32(math.Min(math.Max(latitude/polarStartLatitude, lowestSnowFactor), 1)) / snowBaseFactor
 
 		for x := 0; x < tileMap.TileSize; x++ {
 			longitude := tileBounds.GetPixelLng(x)
@@ -188,8 +188,8 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.Eleva
 			smoothedElev := smoothCoastlines(elevation, x, y, tileMap, zoom)
 
 			newColor := getColorForElevationAndTerrain(
-				smoothedElev*snowThresholdFactor,
-				polarFactor,
+				float32(smoothedElev*snowThresholdFactor),
+				float32(polarFactor),
 				isInIce,
 			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})

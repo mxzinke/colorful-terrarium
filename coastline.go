@@ -6,15 +6,18 @@ import (
 	"github.com/mxzinke/colorful-terrarium/terrain"
 )
 
+// Mix original and smoothed elevations
+const mixFactor float32 = 0.5
+
 // smoothCoastlines applies intelligent smoothing to coastline areas
-func smoothCoastlines(elevation float64, x, y int, elevMap *terrain.ElevationMap, zoom uint32) float64 {
+func smoothCoastlines(elevation float32, x, y int, elevMap *terrain.ElevationMap, zoom uint32) float32 {
 	// Skip smoothing for low zoom levels
 	if zoom < 7 {
 		return elevation
 	}
 
 	// Only smooth on coastlines
-	if math.Abs(elevation) > 200 {
+	if math.Abs(float64(elevation)) > 200 {
 		return elevation
 	}
 
@@ -38,8 +41,8 @@ func smoothCoastlines(elevation float64, x, y int, elevMap *terrain.ElevationMap
 	}
 
 	// Initialize weighted sum for smoothing
-	var weightedSum float64
-	var totalWeight float64
+	var weightedSum float32
+	var totalWeight float32
 	centerIsLand := elevMap.IsLand(elevation)
 
 	// Sample radius increases with zoom level
@@ -57,7 +60,7 @@ func smoothCoastlines(elevation float64, x, y int, elevMap *terrain.ElevationMap
 
 			// Calculate base weight based on distance
 			distance := math.Sqrt(float64(dx*dx + dy*dy))
-			weight := 1.0 / (1.0 + distance)
+			weight := float32(1.0 / (1.0 + distance))
 
 			// Adjust weight based on land/water relationship
 			if neighborIsLand == centerIsLand {
@@ -74,15 +77,12 @@ func smoothCoastlines(elevation float64, x, y int, elevMap *terrain.ElevationMap
 	// Calculate smoothed elevation
 	smoothedElevation := weightedSum / totalWeight
 
-	// Mix original and smoothed elevations
-	mixFactor := 0.5
-
 	// Calculate the final elevation with bounds
 	if centerIsLand {
 		result := elevation*(1-mixFactor) + smoothedElevation*mixFactor
-		return math.Max(0.1, result) // Ensure we stay above sea level
+		return float32(math.Max(0.1, float64(result))) // Ensure we stay above sea level
 	} else {
 		result := elevation*(1-mixFactor) + smoothedElevation*mixFactor
-		return math.Min(0, result) // Ensure we stay at or below sea level
+		return float32(math.Min(0, float64(result))) // Ensure we stay at or below sea level
 	}
 }

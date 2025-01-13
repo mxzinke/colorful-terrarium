@@ -11,7 +11,7 @@ type Color struct {
 
 // ColorStop defines a color at a specific elevation
 type ColorStop struct {
-	Elevation float64
+	Elevation float32
 	Color     Color
 }
 
@@ -70,7 +70,7 @@ var (
 )
 
 // getColorForElevationAndTerrain returns interpolated color based on elevation and latitude
-func getColorForElevationAndTerrain(elevation, polarFactor float64, hasIce bool) Color {
+func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool) Color {
 	if elevation <= 0 && !hasIce {
 		return getColorFromPalette(elevation, normalPalette)
 	}
@@ -87,13 +87,13 @@ func getColorForElevationAndTerrain(elevation, polarFactor float64, hasIce bool)
 
 	// Interpolate between normal and polar colors
 	return Color{
-		R: uint8(float64(normalColor.R)*(1-polarFactor) + float64(polarColor.R)*polarFactor),
-		G: uint8(float64(normalColor.G)*(1-polarFactor) + float64(polarColor.G)*polarFactor),
-		B: uint8(float64(normalColor.B)*(1-polarFactor) + float64(polarColor.B)*polarFactor),
+		R: uint8(math.Round(float64(normalColor.R)*(1-float64(polarFactor)) + float64(polarColor.R)*float64(polarFactor))),
+		G: uint8(math.Round(float64(normalColor.G)*(1-float64(polarFactor)) + float64(polarColor.G)*float64(polarFactor))),
+		B: uint8(math.Round(float64(normalColor.B)*(1-float64(polarFactor)) + float64(polarColor.B)*float64(polarFactor))),
 	}
 }
 
-func getColorFromPalette(elevation float64, palette ColorPalette) Color {
+func getColorFromPalette(elevation float32, palette ColorPalette) Color {
 	// Find color stops for interpolation
 	var lowStop, highStop ColorStop
 
@@ -120,16 +120,16 @@ func getColorFromPalette(elevation float64, palette ColorPalette) Color {
 	factor = factor * factor * (3 - 2*factor)
 
 	// Ensure factor stays within bounds
-	factor = math.Max(0, math.Min(1, factor))
+	factor = float32(math.Max(0, math.Min(1, float64(factor))))
 
 	// Calculate each color component separately with gamma correction
 	gamma := 2.2
-	r := math.Pow(factor*math.Pow(float64(highStop.Color.R)/255, gamma)+
-		(1-factor)*math.Pow(float64(lowStop.Color.R)/255, gamma), 1/gamma) * 255
-	g := math.Pow(factor*math.Pow(float64(highStop.Color.G)/255, gamma)+
-		(1-factor)*math.Pow(float64(lowStop.Color.G)/255, gamma), 1/gamma) * 255
-	b := math.Pow(factor*math.Pow(float64(highStop.Color.B)/255, gamma)+
-		(1-factor)*math.Pow(float64(lowStop.Color.B)/255, gamma), 1/gamma) * 255
+	r := math.Pow(float64(factor)*math.Pow(float64(highStop.Color.R)/255, gamma)+
+		(1-float64(factor))*math.Pow(float64(lowStop.Color.R)/255, gamma), 1/gamma) * 255
+	g := math.Pow(float64(factor)*math.Pow(float64(highStop.Color.G)/255, gamma)+
+		(1-float64(factor))*math.Pow(float64(lowStop.Color.G)/255, gamma), 1/gamma) * 255
+	b := math.Pow(float64(factor)*math.Pow(float64(highStop.Color.B)/255, gamma)+
+		(1-float64(factor))*math.Pow(float64(lowStop.Color.B)/255, gamma), 1/gamma) * 255
 
 	return Color{
 		R: uint8(math.Round(math.Max(0, math.Min(255, r)))),

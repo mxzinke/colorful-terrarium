@@ -1,59 +1,34 @@
 package terrain
 
-import (
-	"image"
-)
-
 // ElevationMap holds preprocessed elevation data for efficient access
 type ElevationMap struct {
-	Data     [][]float64
+	Data     [][]float32
 	TileSize int
-}
-
-// NewElevationMap creates a new ElevationMap from an image
-func NewElevationMap(img image.Image) *ElevationMap {
-	bounds := img.Bounds()
-	data := make([][]float64, bounds.Dy())
-
-	for y := 0; y < bounds.Dy(); y++ {
-		data[y] = make([]float64, bounds.Dx())
-		for x := 0; x < bounds.Dx(); x++ {
-			r, g, b, _ := img.At(x, y).RGBA()
-			r8 := uint8(r >> 8)
-			g8 := uint8(g >> 8)
-			b8 := uint8(b >> 8)
-			data[y][x] = float64(r8)*256 + float64(g8) + float64(b8)/256 - 32768
-		}
-	}
-
-	return &ElevationMap{
-		Data:     data,
-		TileSize: bounds.Max.X,
-	}
 }
 
 // GetElevation returns the elevation at the given coordinates
 // Returns 0 (sea level) for out of bounds coordinates
-func (em *ElevationMap) GetElevation(x, y int) float64 {
+func (em *ElevationMap) GetElevation(x, y int) float32 {
 	if x < 0 || y < 0 || x >= em.TileSize || y >= em.TileSize {
 		return 0
 	}
 	return em.Data[y][x]
 }
 
-func (em *ElevationMap) ModifyElevation(x, y int, elevation float64) {
+// ModifyElevation modifies the elevation at the given coordinates (pixels)
+func (em *ElevationMap) ModifyElevation(x, y int, elevation float32) {
 	em.Data[y][x] = elevation
 }
 
 // IsLand returns true if the elevation indicates land
-func (em *ElevationMap) IsLand(elevation float64) bool {
+func (em *ElevationMap) IsLand(elevation float32) bool {
 	return elevation > 0
 }
 
 // GetNeighborhood returns elevation values in a square neighborhood
-func (em *ElevationMap) GetNeighborhood(x, y, radius int) []float64 {
+func (em *ElevationMap) GetNeighborhood(x, y, radius int) []float32 {
 	size := 2*radius + 1
-	result := make([]float64, 0, size*size)
+	result := make([]float32, 0, size*size)
 
 	for dy := -radius; dy <= radius; dy++ {
 		for dx := -radius; dx <= radius; dx++ {
