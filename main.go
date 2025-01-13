@@ -135,20 +135,16 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	}
 
 	// Download subtiles
-	tiles, err := downloadSubTiles(z, y, x)
+	tileMap, err := terrain.GetElevationMapForTile(terrain.TileCoord{Z: z, Y: y, X: x})
 	if err != nil {
-		log.Printf("Error downloading subtiles: %v", err)
 		return nil, err
 	}
 
-	// Combine tiles
-	combined := compositeImages(tiles)
-
 	// Get latitudes (min and max) for the tile
-	bounds := CreateTileBounds(z, y, x, combined.Bounds().Max.X)
+	bounds := CreateTileBounds(z, y, x, tileMap.TileSize)
 
 	// Process and colorize
-	processed := processAndColorize(s.geoCoverage, combined, bounds, z)
+	processed := processAndColorize(s.geoCoverage, tileMap, bounds, z)
 
 	// Encode processed tile
 	var buf bytes.Buffer
@@ -159,13 +155,10 @@ func (s *TileServer) processTile(z, y, x uint32) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func processAndColorize(geoCoverage *terrain.GeoCoverage, img image.Image, tileBounds *TileBounds, z uint32) *image.RGBA {
-	bounds := img.Bounds()
-	output := image.NewRGBA(bounds)
+func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.ElevationMap, tileBounds *TileBounds, zoom uint32) *image.RGBA {
+	output := image.NewRGBA(image.Rect(0, 0, tileMap.TileSize, tileMap.TileSize))
 
-	elevationMap := terrain.NewElevationMap(img)
-
-	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+	for y := 0; y < tileMap.TileSize; y++ {
 		// Calculate precise latitude for this pixel row
 		baseLatitude := tileBounds.GetPixelLat(y)
 		latitude := math.Abs(baseLatitude)
@@ -181,13 +174,18 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, img image.Image, tileB
 		// Calculate snow threshold factor (bringing down the elevation of the snow)
 		snowThresholdFactor := math.Min(math.Max(latitude/polarStartLatitude, lowestSnowFactor), 1) / snowBaseFactor
 
-		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+		for x := 0; x < tileMap.TileSize; x++ {
 			longitude := tileBounds.GetPixelLng(x)
 
 			isInIce := geoCoverage.IsPointInIce(longitude, baseLatitude)
+			isInLakes := geoCoverage.IsPointInLakes(longitude, baseLatitude)
 
-			elevation := elevationMap.GetElevation(x, y)
-			smoothedElev := smoothCoastlines(elevation, x, y, elevationMap, z)
+			if isInLakes {
+				tileMap.ModifyElevation(x, y, 0)
+			}
+
+			elevation := tileMap.GetElevation(x, y)
+			smoothedElev := smoothCoastlines(elevation, x, y, tileMap, zoom)
 
 			newColor := getColorForElevationAndTerrain(
 				smoothedElev*snowThresholdFactor,

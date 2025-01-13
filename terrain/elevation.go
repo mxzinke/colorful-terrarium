@@ -6,8 +6,8 @@ import (
 
 // ElevationMap holds preprocessed elevation data for efficient access
 type ElevationMap struct {
-	Data   [][]float64
-	Bounds image.Rectangle
+	Data     [][]float64
+	TileSize int
 }
 
 // NewElevationMap creates a new ElevationMap from an image
@@ -27,15 +27,15 @@ func NewElevationMap(img image.Image) *ElevationMap {
 	}
 
 	return &ElevationMap{
-		Data:   data,
-		Bounds: bounds,
+		Data:     data,
+		TileSize: bounds.Max.X,
 	}
 }
 
 // GetElevation returns the elevation at the given coordinates
 // Returns 0 (sea level) for out of bounds coordinates
 func (em *ElevationMap) GetElevation(x, y int) float64 {
-	if x < 0 || y < 0 || x >= em.Bounds.Dx() || y >= em.Bounds.Dy() {
+	if x < 0 || y < 0 || x >= em.TileSize || y >= em.TileSize {
 		return 0
 	}
 	return em.Data[y][x]
@@ -72,7 +72,7 @@ func (em *ElevationMap) GetNeighborhoodStats(x, y, radius int) (landCount, water
 			newX, newY := x+dx, y+dy
 
 			// Check if we're at the tile edge
-			if newX < 0 || newY < 0 || newX >= em.Bounds.Dx() || newY >= em.Bounds.Dy() {
+			if newX < 0 || newY < 0 || newX >= em.TileSize || newY >= em.TileSize {
 				hasEdge = true
 				continue
 			}

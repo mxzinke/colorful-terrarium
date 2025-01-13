@@ -3,6 +3,7 @@ package terrain
 import (
 	"log"
 	"os"
+	"sync"
 
 	"github.com/mxzinke/colorful-terrarium/polygon"
 	"github.com/paulmach/orb"
@@ -10,12 +11,46 @@ import (
 )
 
 type GeoCoverage struct {
-	ice polygon.SpatialIndexer
+	ice   polygon.SpatialIndexer
+	lakes polygon.SpatialIndexer
 }
 
 func LoadGeoCoverage() (*GeoCoverage, error) {
+	var wg sync.WaitGroup
+
+	var ice polygon.SpatialIndexer
+	var lakes polygon.SpatialIndexer
+
+	wg.Add(2)
+	go func() {
+		val, err := loadIndexer("./glaciers.geojson")
+		if err != nil {
+			log.Fatal(err)
+		}
+		ice = val
+		wg.Done()
+	}()
+
+	go func() {
+		val, err := loadIndexer("./lakes.geojson")
+		if err != nil {
+			log.Fatal(err)
+		}
+		lakes = val
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	return &GeoCoverage{
+		ice:   ice,
+		lakes: lakes,
+	}, nil
+}
+
+func loadIndexer(path string) (polygon.SpatialIndexer, error) {
 	// Read the GeoJSON file
-	data, err := os.ReadFile("./glaciers.geojson")
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -26,29 +61,27 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 		return nil, err
 	}
 
-	ice := polygon.New()
-	log.Printf("Loading %d ice features", len(iceFeatures.Features))
+	polys := polygon.New()
+	log.Printf("Loading polygon index with %d features", len(iceFeatures.Features))
 	for _, feature := range iceFeatures.Features {
 		if poly, ok := feature.Geometry.(orb.Polygon); ok {
-			ice.Insert(poly)
+			polys.Insert(poly)
 		}
 
 		if multiPoly, ok := feature.Geometry.(orb.MultiPolygon); ok {
 			for _, poly := range multiPoly {
-				ice.Insert(poly)
+				polys.Insert(poly)
 			}
 		}
 	}
 
-	return &GeoCoverage{
-		ice: ice,
-	}, nil
-}
-
-func (gc *GeoCoverage) HasIceInBounds(bounds orb.Bound) bool {
-	return gc.ice.IsPointInPolygons(bounds.Min) || gc.ice.IsPointInPolygons(bounds.Max)
+	return polys, nil
 }
 
 func (gc *GeoCoverage) IsPointInIce(lon, lat float64) bool {
 	return gc.ice.IsPointInPolygons(orb.Point{lon, lat})
+}
+
+func (gc *GeoCoverage) IsPointInLakes(lon, lat float64) bool {
+	return gc.lakes.IsPointInPolygons(orb.Point{lon, lat})
 }
