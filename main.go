@@ -171,6 +171,8 @@ func (s *TileServer) processTile(ctx context.Context, z, y, x uint32) ([]byte, e
 func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.ElevationMap, tileBounds *TileBounds, zoom uint32) *image.RGBA {
 	output := image.NewRGBA(image.Rect(0, 0, tileMap.TileSize, tileMap.TileSize))
 
+	desertFactorMatrix := buildDesertFactorMatrix(geoCoverage, tileBounds, tileMap, zoom)
+
 	for y := 0; y < tileMap.TileSize; y++ {
 		// Calculate precise latitude for this pixel row
 		baseLatitude := tileBounds.GetPixelLat(y)
@@ -204,7 +206,7 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.Eleva
 				float32(smoothedElev*snowThresholdFactor),
 				float32(polarFactor),
 				isInIce,
-				geoCoverage.IsPointInDeserts(longitude, baseLatitude),
+				desertFactorMatrix[y][x],
 			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}

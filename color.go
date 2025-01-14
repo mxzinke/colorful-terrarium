@@ -84,7 +84,7 @@ var (
 )
 
 // getColorForElevationAndTerrain returns interpolated color based on elevation and latitude
-func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool, hasDeserts bool) Color {
+func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool, desertFactor float64) Color {
 	if elevation <= 0 && !hasIce {
 		return getColorFromPalette(elevation, normalPalette)
 	}
@@ -95,13 +95,26 @@ func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool,
 		return polarColor
 	}
 
-	if hasDeserts {
-		desertColor := getColorFromPalette(elevation, desertPalette)
-		return desertColor
+	// TODO: Remove, only for debugging
+	if desertFactor < 0 {
+		return Color{0, 0, 0}
 	}
 
-	// Get colors from both palette
+	if desertFactor == 1 {
+		return getColorFromPalette(elevation, desertPalette)
+	}
+
 	normalColor := getColorFromPalette(elevation, normalPalette)
+
+	if desertFactor > 0 {
+		desertColor := getColorFromPalette(elevation, desertPalette)
+		return Color{
+			R: uint8(math.Round(float64(normalColor.R)*(1-float64(desertFactor)) + float64(desertColor.R)*float64(desertFactor))),
+			G: uint8(math.Round(float64(normalColor.G)*(1-float64(desertFactor)) + float64(desertColor.G)*float64(desertFactor))),
+			B: uint8(math.Round(float64(normalColor.B)*(1-float64(desertFactor)) + float64(desertColor.B)*float64(desertFactor))),
+		}
+	}
+
 	polarColor := getColorFromPalette(elevation, polarPalette)
 
 	// Interpolate between normal and polar colors

@@ -43,7 +43,7 @@ func smoothCoastlines(elevation float32, x, y int, elevMap *terrain.ElevationMap
 	// Initialize weighted sum for smoothing
 	var weightedSum float32
 	var totalWeight float32
-	centerIsLand := elevMap.IsLand(elevation)
+	centerIsLand := elevMap.IsLand(x, y)
 
 	// Sample radius increases with zoom level
 	radius := patternSize
@@ -56,7 +56,7 @@ func smoothCoastlines(elevation float32, x, y int, elevMap *terrain.ElevationMap
 			}
 
 			neighborElev := elevMap.GetElevation(x+dx, y+dy)
-			neighborIsLand := elevMap.IsLand(neighborElev)
+			neighborIsLand := elevMap.IsLand(x+dx, y+dy)
 
 			// Calculate base weight based on distance
 			distance := math.Sqrt(float64(dx*dx + dy*dy))

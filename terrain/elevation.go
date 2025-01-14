@@ -21,8 +21,8 @@ func (em *ElevationMap) ModifyElevation(x, y int, elevation float32) {
 }
 
 // IsLand returns true if the elevation indicates land
-func (em *ElevationMap) IsLand(elevation float32) bool {
-	return elevation > 0
+func (em *ElevationMap) IsLand(x, y int) bool {
+	return em.Data[y][x] > 0
 }
 
 // GetNeighborhood returns elevation values in a square neighborhood
@@ -52,8 +52,7 @@ func (em *ElevationMap) GetNeighborhoodStats(x, y, radius int) (landCount, water
 				continue
 			}
 
-			elev := em.Data[newY][newX]
-			if em.IsLand(elev) {
+			if em.IsLand(newX, newY) {
 				landCount++
 			} else {
 				waterCount++

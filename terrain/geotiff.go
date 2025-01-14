@@ -76,8 +76,19 @@ func readTIFFToFloat32Matrix(data []byte) ([][]float32, int, error) {
 		matrix[y] = make([]float32, width)
 
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			height := img.At(x, y).(color.Gray16)
-			matrix[y][x] = float32(int16(height.Y))
+			height := img.At(x, y)
+
+			if _, ok := height.(color.Gray16); ok {
+				matrix[y][x] = float32(int16(height.(color.Gray16).Y))
+				continue
+			}
+
+			if _, ok := height.(color.Gray); ok {
+				// Ignore this, as the data is empty!
+				continue
+			}
+
+			return nil, 0, fmt.Errorf("unsupported color type: %T", height)
 		}
 	}
 
