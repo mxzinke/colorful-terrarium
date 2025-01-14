@@ -34,35 +34,43 @@ try {
   const geojson: geojson.FeatureCollection = JSON.parse(geojsonString);
 
   // Features verarbeiten
-  const outerFeatures = geojson.features.map((feature) => {
+  const outerFeatures = geojson.features.map((feature, idx) => {
     if (
       feature.geometry.type === "Polygon" ||
       feature.geometry.type === "MultiPolygon"
     ) {
       return {
         ...feature,
+        id: idx.toString(),
         geometry: scaleGeometry(
           feature.geometry as geojson.Polygon | geojson.MultiPolygon,
           SCALE_DISTANCE,
         ),
       };
     }
-    return feature;
+    return {
+      ...feature,
+      id: idx.toString(),
+    };
   });
-  const innerFeatures = geojson.features.map((feature) => {
+  const innerFeatures = geojson.features.map((feature, idx) => {
     if (
       feature.geometry.type === "Polygon" ||
       feature.geometry.type === "MultiPolygon"
     ) {
       return {
         ...feature,
+        id: idx.toString(),
         geometry: scaleGeometry(
           feature.geometry as geojson.Polygon | geojson.MultiPolygon,
           -SCALE_DISTANCE,
         ),
       };
     }
-    return feature;
+    return {
+      ...feature,
+      id: idx.toString(),
+    };
   });
 
   writeFileSync(
