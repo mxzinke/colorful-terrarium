@@ -12,6 +12,8 @@ import (
 	"github.com/paulmach/orb/geojson"
 )
 
+const maxDesertInnerOuterDistance = 0.56 // approx 60km
+
 type GeoCoverage struct {
 	ice          polygon.SpatialIndexer
 	lakes        polygon.SpatialIndexer
@@ -154,11 +156,11 @@ func (gc *GeoCoverage) DesertFactorForPoint(lon, lat float64) float64 {
 		log.Fatalf("no distance polygons found for point %f, %f", lon, lat)
 	}
 
-	distanceToInner := polygon.DistanceToPolygon(orb.Point{lon, lat}, *distancePolygons[0])
-
 	// Important, to use the same polygon for both distance calculations
 	idWithDistanceToInner := (*distancePolygons[0]).ID()
 
+	// Find the closest inner polygon
+	distanceToInner := polygon.DistanceToPolygon(orb.Point{lon, lat}, *distancePolygons[0])
 	if len(distancePolygons) > 1 {
 		for i, poly := range distancePolygons {
 			if i == 0 {
