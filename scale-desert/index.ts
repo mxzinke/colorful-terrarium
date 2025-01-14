@@ -16,7 +16,7 @@ function scaleGeometry(
     // buffer the geometry by the given distance
     const buffered = turf.buffer(geometry, distance, {
       units: "kilometers",
-      steps: 64, // higher number = smoother edges
+      steps: 8, // higher number = smoother edges
     });
 
     // turf.buffer returns a Feature<Polygon|MultiPolygon>
@@ -42,6 +42,10 @@ try {
       return {
         ...feature,
         id: idx.toString(),
+        properties: {
+          ...feature.properties,
+          id: idx.toString(),
+        },
         geometry: scaleGeometry(
           feature.geometry as geojson.Polygon | geojson.MultiPolygon,
           SCALE_DISTANCE,
@@ -51,6 +55,10 @@ try {
     return {
       ...feature,
       id: idx.toString(),
+      properties: {
+        ...feature.properties,
+        id: idx.toString(),
+      },
     };
   });
   const innerFeatures = geojson.features.map((feature, idx) => {
@@ -61,6 +69,10 @@ try {
       return {
         ...feature,
         id: idx.toString(),
+        properties: {
+          ...feature.properties,
+          id: idx.toString(),
+        },
         geometry: scaleGeometry(
           feature.geometry as geojson.Polygon | geojson.MultiPolygon,
           -SCALE_DISTANCE,
@@ -70,6 +82,10 @@ try {
     return {
       ...feature,
       id: idx.toString(),
+      properties: {
+        ...feature.properties,
+        id: idx.toString(),
+      },
     };
   });
 
