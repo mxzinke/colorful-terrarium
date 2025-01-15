@@ -16,7 +16,6 @@ const maxDesertInnerOuterDistance = 0.56 // approx 60km
 
 type GeoCoverage struct {
 	ice          polygon.SpatialIndexer
-	lakes        polygon.SpatialIndexer
 	innerDeserts polygon.SpatialIndexer
 	outerDeserts polygon.SpatialIndexer
 }
@@ -46,26 +45,16 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 	var wg sync.WaitGroup
 
 	var ice polygon.SpatialIndexer
-	var lakes polygon.SpatialIndexer
 	var innerDeserts polygon.SpatialIndexer
 	var outerDeserts polygon.SpatialIndexer
 
-	wg.Add(4)
+	wg.Add(3)
 	go func() {
 		val, err := loadIndexer("./data/glaciers.geojson")
 		if err != nil {
 			log.Fatal(err)
 		}
 		ice = val
-		wg.Done()
-	}()
-
-	go func() {
-		val, err := loadIndexer("./data/lakes.geojson")
-		if err != nil {
-			log.Fatal(err)
-		}
-		lakes = val
 		wg.Done()
 	}()
 
@@ -91,7 +80,6 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 
 	return &GeoCoverage{
 		ice:          ice,
-		lakes:        lakes,
 		innerDeserts: innerDeserts,
 		outerDeserts: outerDeserts,
 	}, nil
@@ -140,10 +128,6 @@ func loadIndexer(path string) (polygon.SpatialIndexer, error) {
 
 func (gc *GeoCoverage) IsPointInIce(lon, lat float64) bool {
 	return gc.ice.PointInAnyPolygon(orb.Point{lon, lat})
-}
-
-func (gc *GeoCoverage) IsPointInLakes(lon, lat float64) bool {
-	return gc.lakes.PointInAnyPolygon(orb.Point{lon, lat})
 }
 
 func (gc *GeoCoverage) DesertFactorForPoint(lon, lat float64) float64 {

@@ -39,8 +39,8 @@ func (cw *compressionWriter) Header() http.Header {
 }
 
 var (
-	// URL pattern: /{z}/{y}/{x}.png
-	tilePattern = regexp.MustCompile(`^/(\d{1,2})/(\d+)/(\d+)\.png$`)
+	// URL pattern: /color-v1/{z}/{y}/{x}.png
+	tilePattern = regexp.MustCompile(`^/color-v1/(\d{1,2})/(\d+)/(\d+)\.png$`)
 )
 
 type TileServer struct {
@@ -74,7 +74,7 @@ func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	y, _ := strconv.ParseUint(matches[2], 10, 32)
 	x, _ := strconv.ParseUint(matches[3], 10, 32)
 
-	log.Printf("Requesting tile %d/%d/%d\n", z, y, x)
+	log.Printf("Requesting tile /color-v1/%d/%d/%d\n", z, y, x)
 
 	ctx := r.Context()
 
@@ -82,13 +82,13 @@ func (s *TileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 	processedTile, err := s.processTile(ctx, uint32(z), uint32(y), uint32(x))
 	if err != nil {
-		log.Printf("Error processing tile %d/%d/%d: %v", z, y, x, err)
+		log.Printf("Error processing tile /color-v1/%d/%d/%d: %v", z, y, x, err)
 		http.Error(w, "Error processing tile", http.StatusInternalServerError)
 		return
 	}
 	elapsed := time.Since(startTime)
 
-	log.Printf("Processed tile %d/%d/%d in %s", z, y, x, elapsed)
+	log.Printf("Processed tile /color-v1/%d/%d/%d in %s", z, y, x, elapsed)
 
 	if len(processedTile) == 0 {
 		http.Error(w, "Tile not found", http.StatusNotFound)
@@ -193,13 +193,13 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.Eleva
 			longitude := tileBounds.GetPixelLng(x)
 
 			isInIce := geoCoverage.IsPointInIce(longitude, baseLatitude)
-			isInLakes := geoCoverage.IsPointInLakes(longitude, baseLatitude)
+			//isInLakes := geoCoverage.IsPointInLakes(longitude, baseLatitude)
 
 			elevation := tileMap.GetElevation(x, y)
-			if isInLakes && elevation > 0 {
-				elevation = 0
-				tileMap.ModifyElevation(x, y, 0)
-			}
+			// if isInLakes && elevation > 0 {
+			// 	elevation = 0
+			// 	tileMap.ModifyElevation(x, y, 0)
+			// }
 			smoothedElev := smoothCoastlines(elevation, x, y, tileMap, zoom)
 
 			newColor := getColorForElevationAndTerrain(

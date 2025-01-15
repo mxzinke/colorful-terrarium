@@ -11,7 +11,7 @@ import (
 	tiff "github.com/chai2010/tiff"
 )
 
-const geotiffSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/v2/geotiff/%d/%d/%d.tif"
+const geotiffSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/geotiff/%d/%d/%d.tif"
 
 func GetElevationMapFromGeoTIFF(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
 	// GeoTIFF fetching...
