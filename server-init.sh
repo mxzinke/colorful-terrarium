@@ -35,16 +35,29 @@ systemctl restart containerd
 
 # Configure IPv6 iptables
 ip6tables -F
+ip6tables -X
 ip6tables -P INPUT DROP
 ip6tables -P FORWARD DROP
 ip6tables -P OUTPUT ACCEPT
 
-# Allow established connections
+# Allow loopback interface
+ip6tables -A INPUT -i lo -j ACCEPT
+
+# Allow ICMPv6 for proper IPv6 functionality
+ip6tables -A INPUT -p ipv6-icmp -j ACCEPT
+
+# Allow established and related connections
 ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 
 # Allow SSH and HTTP
 ip6tables -A INPUT -p tcp --dport 22 -j ACCEPT
 ip6tables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+# Allow Neighbor Discovery Protocol (NDP)
+ip6tables -A INPUT -p icmpv6 --icmpv6-type router-advertisement -j ACCEPT
+ip6tables -A INPUT -p icmpv6 --icmpv6-type router-solicitation -j ACCEPT
+ip6tables -A INPUT -p icmpv6 --icmpv6-type neighbour-advertisement -j ACCEPT
+ip6tables -A INPUT -p icmpv6 --icmpv6-type neighbour-solicitation -j ACCEPT
 
 # Save iptables rules
 apt-get install -y iptables-persistent
@@ -63,6 +76,7 @@ proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=10g
 
 server {
     listen 80;
+    listen [::]:80;
     server_name _;
 
     location / {
@@ -89,6 +103,9 @@ rm /etc/nginx/sites-enabled/default
 # Test and reload Nginx
 nginx -t
 systemctl reload nginx
+
+# Proxy for ghcr.io
+echo "2a01:4f8:c010:d56::6 ghcr.io" >> /etc/hosts
 
 # Pull and run Docker container
 docker pull ghcr.io/mxzinke/colorful-terrarium:latest
