@@ -52,7 +52,7 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 
 	wg.Add(4)
 	go func() {
-		val, err := loadIndexer("./glaciers.geojson")
+		val, err := loadIndexer("./data/glaciers.geojson")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -61,7 +61,7 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 	}()
 
 	go func() {
-		val, err := loadIndexer("./lakes.geojson")
+		val, err := loadIndexer("./data/lakes.geojson")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -70,7 +70,7 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 	}()
 
 	go func() {
-		val, err := loadIndexer("./inner-deserts.geojson")
+		val, err := loadIndexer("./data/inner-deserts.geojson")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -79,7 +79,7 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 	}()
 
 	go func() {
-		val, err := loadIndexer("./outer-deserts.geojson")
+		val, err := loadIndexer("./data/outer-deserts.geojson")
 		if err != nil {
 			log.Fatal(err)
 		}
