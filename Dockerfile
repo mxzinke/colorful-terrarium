@@ -16,6 +16,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app-binary
 # Finale Stage
 FROM alpine:latest
 
+LABEL org.opencontainers.image.source="https://github.com/mxzinke/colorful-terrarium"
+
 ARG USER=default
 
 # add new user
