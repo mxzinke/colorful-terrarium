@@ -22,7 +22,7 @@ import (
 
 const (
 	port    = 8080
-	maxZoom = 14
+	maxZoom = 13
 )
 
 type compressionWriter struct {
