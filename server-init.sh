@@ -1,0 +1,117 @@
+#!/bin/bash
+
+# Exit on error
+set -e
+
+echo "Starting server setup..."
+
+# Update system
+apt-get update
+apt-get upgrade -y
+
+# Install required packages
+apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# Install Docker using the official repository
+mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io
+
+# Configure containerd to use systemd as cgroup driver
+mkdir -p /etc/containerd
+containerd config default | tee /etc/containerd/config.toml
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+systemctl restart containerd
+
+# Configure IPv6 iptables
+ip6tables -F
+ip6tables -P INPUT DROP
+ip6tables -P FORWARD DROP
+ip6tables -P OUTPUT ACCEPT
+
+# Allow established connections
+ip6tables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow SSH and HTTP
+ip6tables -A INPUT -p tcp --dport 22 -j ACCEPT
+ip6tables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+# Save iptables rules
+apt-get install -y iptables-persistent
+ip6tables-save > /etc/iptables/rules.v6
+
+# Install and configure Nginx
+apt-get install -y nginx
+
+# Create Nginx cache directory
+mkdir -p /var/cache/nginx
+chown -R www-data:www-data /var/cache/nginx
+
+# Configure Nginx
+cat > /etc/nginx/conf.d/proxy-cache.conf << 'EOL'
+proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=10g inactive=30d use_temp_path=off;
+
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_cache my_cache;
+        proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
+        proxy_cache_valid 200 30d;
+        proxy_cache_valid any 1m;
+        proxy_cache_min_uses 1;
+        proxy_cache_bypass $http_cache_control;
+        add_header X-Cache-Status $upstream_cache_status;
+
+        proxy_pass http://localhost:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOL
+
+# Remove default Nginx config
+rm /etc/nginx/sites-enabled/default
+
+# Test and reload Nginx
+nginx -t
+systemctl reload nginx
+
+# Pull and run Docker container
+docker pull ghcr.io/mxzinke/colorful-terrarium:latest
+
+# Create Docker service file for automatic restart
+cat > /etc/systemd/system/colorful-terrarium.service << 'EOL'
+[Unit]
+Description=Colorful Terrarium Container
+Requires=docker.service
+After=docker.service
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/docker run --rm --name colorful-terrarium -p 8080:8080 ghcr.io/mxzinke/colorful-terrarium:latest
+ExecStop=/usr/bin/docker stop colorful-terrarium
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+# Enable and start the service
+systemctl daemon-reload
+systemctl enable colorful-terrarium
+systemctl start colorful-terrarium
+
+echo "Setup completed successfully!"
