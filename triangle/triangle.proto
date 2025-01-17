@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "./proto";
+
+message Point {
+  float x = 1;
+  float y = 2;
+}
+
+// Clockwise order points
+message Triangle {
+  Point p1 = 1;
+  Point p2 = 2;
+  Point p3 = 3;
+}
+
+message TriangleCollection {
+  repeated Triangle triangles = 1;
+}
