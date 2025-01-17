@@ -29,7 +29,7 @@ const (
 )
 
 var (
-	normalPalette = ColorPalette{
+	waterPalette = ColorPalette{
 		stops: []ColorStop{
 			{-10000, Color{65, 146, 208}}, // Shallow ocean
 			{-1000, Color{87, 172, 230}},  // Deep ocean
@@ -39,18 +39,22 @@ var (
 			{-40, Color{170, 218, 252}},   // Shallow water
 			{-20, Color{173, 216, 247}},   // Very shallow water
 			{0, Color{191, 228, 252}},     // Coastal water
-			{0.1, Color{235, 230, 185}},   // Beach
-			{3, Color{172, 208, 165}},     // Coastline
-			{50, Color{148, 191, 139}},    // Coastal plains
-			{100, Color{148, 191, 139}},   // Coastal plains
-			{300, Color{168, 198, 143}},   // Lowlands
-			{600, Color{189, 204, 150}},   // Hills
-			{1000, Color{195, 182, 157}},  // Low mountains
-			{1500, Color{168, 154, 134}},  // Medium mountains
-			{2000, Color{148, 144, 139}},  // High mountains
-			{2500, Color{130, 115, 95}},   // Very high mountains
-			{3000, Color{240, 240, 240}},  // Alpine/Snow transition
-			{4000, Color{255, 255, 255}},  // Permanent snow
+		},
+	}
+
+	normalPalette = ColorPalette{
+		stops: []ColorStop{
+			{0, Color{172, 208, 165}},    // Coastline
+			{50, Color{148, 191, 139}},   // Coastal plains
+			{100, Color{148, 191, 139}},  // Coastal plains
+			{300, Color{168, 198, 143}},  // Lowlands
+			{600, Color{189, 204, 150}},  // Hills
+			{1000, Color{195, 182, 157}}, // Low mountains
+			{1500, Color{168, 154, 134}}, // Medium mountains
+			{2000, Color{148, 144, 139}}, // High mountains
+			{2500, Color{130, 115, 95}},  // Very high mountains
+			{3000, Color{240, 240, 240}}, // Alpine/Snow transition
+			{4000, Color{255, 255, 255}}, // Permanent snow
 		},
 	}
 
@@ -72,30 +76,22 @@ var (
 
 	desertPalette = ColorPalette{
 		stops: []ColorStop{
-			{-10000, Color{65, 146, 208}}, // Shallow ocean
-			{-1000, Color{87, 172, 230}},  // Deep ocean
-			{-500, Color{96, 178, 235}},   // Medium depth ocean
-			{-200, Color{109, 187, 239}},  // Shallow ocean
-			{-50, Color{125, 197, 245}},   // Very Shallow ocean
-			{-20, Color{170, 218, 252}},   // Shallow water
-			{-10, Color{173, 216, 247}},   // Very shallow water
-			{0, Color{191, 228, 252}},     // Coastal water
-			{0.1, Color{235, 230, 185}},   // Beach
-			{300, Color{209, 199, 159}},   // Lowlands
-			{600, Color{189, 170, 134}},   // Hills
-			{1500, Color{168, 154, 134}},  // Medium mountains
-			{2000, Color{148, 144, 139}},  // High mountains
-			{2500, Color{130, 115, 95}},   // Very high mountains
-			{3000, Color{240, 240, 240}},  // Alpine/Snow transition
-			{4000, Color{255, 255, 255}},  // Permanent snow
+			{0, Color{235, 230, 185}},    // Beach
+			{300, Color{209, 199, 159}},  // Lowlands
+			{600, Color{189, 170, 134}},  // Hills
+			{1500, Color{168, 154, 134}}, // Medium mountains
+			{2000, Color{148, 144, 139}}, // High mountains
+			{2500, Color{130, 115, 95}},  // Very high mountains
+			{3000, Color{240, 240, 240}}, // Alpine/Snow transition
+			{4000, Color{255, 255, 255}}, // Permanent snow
 		},
 	}
 )
 
 // getColorForElevationAndTerrain returns interpolated color based on elevation and latitude
-func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool, desertFactor float64) Color {
-	if elevation <= 0 && !hasIce {
-		return getColorFromPalette(elevation, normalPalette)
+func getColorForElevationAndTerrain(elevation, polarFactor float32, hasIce bool, desertFactor float64, isLand bool) Color {
+	if !isLand && !hasIce {
+		return getColorFromPalette(elevation, waterPalette)
 	}
 
 	// If the elevation is below 100 and the location is in ice, use the polar palette

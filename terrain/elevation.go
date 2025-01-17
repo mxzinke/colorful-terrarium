@@ -20,8 +20,8 @@ func (em *ElevationMap) ModifyElevation(x, y int, elevation float32) {
 	em.Data[y][x] = elevation
 }
 
-// IsLand returns true if the elevation indicates land
-func (em *ElevationMap) IsLand(x, y int) bool {
+// IsAboveSeaLevel returns true if the elevation indicates land
+func (em *ElevationMap) IsAboveSeaLevel(x, y int) bool {
 	return em.Data[y][x] > 0
 }
 
@@ -52,7 +52,7 @@ func (em *ElevationMap) GetNeighborhoodStats(x, y, radius int) (landCount, water
 				continue
 			}
 
-			if em.IsLand(newX, newY) {
+			if em.IsAboveSeaLevel(newX, newY) {
 				landCount++
 			} else {
 				waterCount++

@@ -10,6 +10,7 @@ RUN go mod download
 COPY *.go ./
 COPY terrain/ ./terrain/
 COPY polygon/ ./polygon/
+COPY triangle/ ./triangle/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app-binary
 

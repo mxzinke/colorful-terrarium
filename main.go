@@ -171,8 +171,6 @@ func (s *TileServer) processTile(ctx context.Context, z, y, x uint32) ([]byte, e
 func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.ElevationMap, tileBounds *TileBounds, zoom uint32) *image.RGBA {
 	output := image.NewRGBA(image.Rect(0, 0, tileMap.TileSize, tileMap.TileSize))
 
-	desertFactorMatrix := buildDesertFactorMatrix(geoCoverage, tileBounds, tileMap, zoom)
-
 	for y := 0; y < tileMap.TileSize; y++ {
 		// Calculate precise latitude for this pixel row
 		baseLatitude := tileBounds.GetPixelLat(y)
@@ -193,20 +191,27 @@ func processAndColorize(geoCoverage *terrain.GeoCoverage, tileMap *terrain.Eleva
 			longitude := tileBounds.GetPixelLng(x)
 
 			isInIce := geoCoverage.IsPointInIce(longitude, baseLatitude)
-			//isInLakes := geoCoverage.IsPointInLakes(longitude, baseLatitude)
 
 			elevation := tileMap.GetElevation(x, y)
-			// if isInLakes && elevation > 0 {
-			// 	elevation = 0
-			// 	tileMap.ModifyElevation(x, y, 0)
-			// }
-			smoothedElev := smoothCoastlines(elevation, x, y, tileMap, zoom)
+
+			isLand := elevation > 100
+			if !isLand {
+				isLand = geoCoverage.IsPointInLand(longitude, baseLatitude)
+			}
+
+			desertFactor := 0.0
+			if isLand && latitude < 60 {
+				desertFactor = geoCoverage.DesertFactorForPoint(longitude, baseLatitude)
+			}
+
+			//smoothedElev := smoothCoastlines(elevation, x, y, tileMap, zoom)
 
 			newColor := getColorForElevationAndTerrain(
-				float32(smoothedElev*snowThresholdFactor),
+				float32(elevation*snowThresholdFactor),
 				float32(polarFactor),
 				isInIce,
-				desertFactorMatrix[y][x],
+				desertFactor,
+				isLand,
 			)
 			output.Set(x, y, color.RGBA{newColor.R, newColor.G, newColor.B, 255})
 		}

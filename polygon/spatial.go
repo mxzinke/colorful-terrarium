@@ -60,6 +60,10 @@ func New() *Index {
 
 func (idx *Index) InsertTriangle(id string, tri triangle.Triangle) error {
 	bounds := tri.Bound()
+
+	// Update bounds
+	idx.bounds = idx.bounds.Union(bounds)
+
 	rect, err := rtreego.NewRectFromPoints(
 		rtreego.Point{bounds.Min[0] - 1e-7, bounds.Min[1] - 1e-7},
 		rtreego.Point{bounds.Max[0] + 1e-7, bounds.Max[1] + 1e-7},
@@ -183,38 +187,6 @@ func (idx *Index) getIntersectingTriangles(p orb.Point) []rtreego.Spatial {
 
 	// Search R-tree for potential triangles
 	return idx.rtree.SearchIntersect(pointRect)
-}
-
-// convertPolygonToEarcut converts an orb.Polygon to earcut input format
-func convertPolygonToEarcut(poly orb.Polygon) ([]float64, []int) {
-	// Calculate total number of points
-	totalPoints := len(poly[0]) // exterior ring
-	holes := make([]int, len(poly)-1)
-	currentIndex := totalPoints
-
-	// Calculate hole start indices and total points
-	for i := 1; i < len(poly); i++ {
-		holes[i-1] = currentIndex
-		totalPoints += len(poly[i])
-		currentIndex += len(poly[i])
-	}
-
-	// Create flat array of vertices
-	vertices := make([]float64, 0, totalPoints*2)
-
-	// Add exterior ring
-	for _, p := range poly[0] {
-		vertices = append(vertices, p[0], p[1])
-	}
-
-	// Add holes
-	for i := 1; i < len(poly); i++ {
-		for _, p := range poly[i] {
-			vertices = append(vertices, p[0], p[1])
-		}
-	}
-
-	return vertices, holes
 }
 
 func PointInTriangle(pt, v1, v2, v3 [2]float64) bool {
