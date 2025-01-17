@@ -12,7 +12,7 @@ import (
 
 func main() {
 	if len(os.Args) != 3 {
-		fmt.Println("Usage: geojson-to-tri <input.geojson> <output.tri>")
+		fmt.Println("Usage: geojson-to-tri <input.geojson> <output.tri.pbf>")
 		os.Exit(1)
 	}
 

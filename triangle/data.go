@@ -20,6 +20,7 @@ func (t Triangle) Data() []orb.Ring {
 		{t.points[0][0], t.points[0][1]},
 		{t.points[1][0], t.points[1][1]},
 		{t.points[2][0], t.points[2][1]},
+		{t.points[0][0], t.points[0][1]},
 	}}
 }
 

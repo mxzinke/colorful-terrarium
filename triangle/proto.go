@@ -1,7 +1,7 @@
 package triangle
 
 import (
-	"fmt"
+	"strconv"
 
 	internal "github.com/mxzinke/colorful-terrarium/triangle/proto"
 	"github.com/paulmach/orb"
@@ -18,7 +18,7 @@ func Unmarshal(data []byte) ([]Triangle, error) {
 	triangles := make([]Triangle, len(tri.Triangles))
 	for i, t := range tri.Triangles {
 		triangles[i] = NewTriangle(
-			fmt.Sprintf("%d", i),
+			strconv.Itoa(i),
 			[3]orb.Point{
 				{float64(t.P1.X), float64(t.P1.Y)},
 				{float64(t.P2.X), float64(t.P2.Y)},

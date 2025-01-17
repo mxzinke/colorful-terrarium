@@ -1,7 +1,7 @@
 package triangle
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/paulmach/orb"
 	"github.com/rclancey/go-earcut"
@@ -59,7 +59,7 @@ func FromPolygon(p orb.Polygon) ([]Triangle, error) {
 			{vertices[i3], vertices[i3+1]},
 		}
 
-		triangles[i/3] = NewTriangle(fmt.Sprintf("%d", i), points)
+		triangles[i/3] = NewTriangle(strconv.Itoa(i), points)
 	}
 
 	return triangles, nil
