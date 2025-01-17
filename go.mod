@@ -12,4 +12,5 @@ require (
 require (
 	github.com/stretchr/testify v1.7.2 // indirect
 	go.mongodb.org/mongo-driver v1.11.4 // indirect
+	google.golang.org/protobuf v1.36.3 // indirect
 )

@@ -5,17 +5,13 @@ import (
 	"math"
 
 	"github.com/dhconnelly/rtreego"
+	"github.com/mxzinke/colorful-terrarium/triangle"
 	"github.com/paulmach/orb"
-	"github.com/rclancey/go-earcut"
 )
 
 type Polygon interface {
 	ID() string
 	Bound() orb.Bound
-	Dimensions() int
-	GeoJSONType() string
-	Equal(p Polygon) bool
-	Clone() Polygon
 	Data() []orb.Ring
 }
 
@@ -54,7 +50,7 @@ type Index struct {
 }
 
 // New creates a new spatial index
-func New() SpatialIndexer {
+func New() *Index {
 	return &Index{
 		rtree:  rtreego.NewTree(2, 25, 50),
 		polys:  make(map[string]*Polygon),
@@ -62,13 +58,35 @@ func New() SpatialIndexer {
 	}
 }
 
-// Insert implements SpatialIndexer
-func (idx *Index) Insert(poly Polygon) error {
-	// Convert polygon to earcut format
-	vertices, holes := convertPolygonToEarcut(poly.Data())
+func (idx *Index) InsertTriangle(id string, tri triangle.Triangle) error {
+	bounds := tri.Bound()
+	rect, err := rtreego.NewRectFromPoints(
+		rtreego.Point{bounds.Min[0] - 1e-7, bounds.Min[1] - 1e-7},
+		rtreego.Point{bounds.Max[0] + 1e-7, bounds.Max[1] + 1e-7},
+	)
+	if err != nil {
+		return err
+	}
 
-	// Triangulate using earcut
-	indices, err := earcut.Earcut(vertices, holes, 2)
+	poly := Polygon(tri)
+	polyPointer := &poly
+	// Create and insert triangle wrapper
+	tw := &triangleWrapper{
+		points:   tri.Points(),
+		original: polyPointer,
+		bbox:     rect,
+	}
+	idx.rtree.Insert(tw)
+	idx.polys[id] = polyPointer
+
+	return nil
+}
+
+// Insert implements SpatialIndexer
+func (idx *Index) Insert(p Polygon) error {
+	poly := orb.Polygon(p.Data())
+
+	triangles, err := triangle.FromPolygon(poly)
 	if err != nil {
 		return err
 	}
@@ -77,30 +95,14 @@ func (idx *Index) Insert(poly Polygon) error {
 	idx.bounds = idx.bounds.Union(poly.Bound())
 
 	// Create a pointer to the original polygon
-	polyPointer := &poly
+	polyPointer := &p
 
 	// Create triangles from indices
-	for i := 0; i < len(indices); i += 3 {
-		// Get vertex indices for this triangle
-		i1, i2, i3 := indices[i]*2, indices[i+1]*2, indices[i+2]*2
-
-		// Create triangle points
-		points := [3]orb.Point{
-			{vertices[i1], vertices[i1+1]},
-			{vertices[i2], vertices[i2+1]},
-			{vertices[i3], vertices[i3+1]},
-		}
-
-		// Calculate triangle bounds
-		minX := min3(points[0][0], points[1][0], points[2][0])
-		minY := min3(points[0][1], points[1][1], points[2][1])
-		maxX := max3(points[0][0], points[1][0], points[2][0])
-		maxY := max3(points[0][1], points[1][1], points[2][1])
-
+	for i := 0; i < len(triangles); i++ {
 		// Create R-tree rectangle
 		rect, err := rtreego.NewRectFromPoints(
-			rtreego.Point{minX - 1e-7, minY - 1e-7},
-			rtreego.Point{maxX + 1e-7, maxY + 1e-7},
+			rtreego.Point{triangles[i].Bound().Min[0] - 1e-7, triangles[i].Bound().Min[1] - 1e-7},
+			rtreego.Point{triangles[i].Bound().Max[0] + 1e-7, triangles[i].Bound().Max[1] + 1e-7},
 		)
 		if err != nil {
 			return err
@@ -108,13 +110,13 @@ func (idx *Index) Insert(poly Polygon) error {
 
 		// Create and insert triangle wrapper
 		tw := &triangleWrapper{
-			points:   points,
+			points:   triangles[i].Points(),
 			original: polyPointer,
 			bbox:     rect,
 		}
 		idx.rtree.Insert(tw)
 	}
-	idx.polys[poly.ID()] = polyPointer
+	idx.polys[p.ID()] = polyPointer
 
 	return nil
 }
