@@ -1,6 +1,7 @@
 package polygon
 
 import (
+	"errors"
 	"log"
 	"math"
 
@@ -58,32 +59,47 @@ func New() *Index {
 	}
 }
 
-func (idx *Index) InsertTriangle(id string, tri triangle.Triangle) error {
-	bounds := tri.Bound()
-
-	// Update bounds
-	idx.bounds = idx.bounds.Union(bounds)
-
-	rect, err := rtreego.NewRectFromPoints(
-		rtreego.Point{bounds.Min[0] - 1e-7, bounds.Min[1] - 1e-7},
-		rtreego.Point{bounds.Max[0] + 1e-7, bounds.Max[1] + 1e-7},
-	)
-	if err != nil {
-		return err
+func CreateIndexFromTriangles(triangles []triangle.Triangle) (*Index, error) {
+	if len(triangles) == 0 {
+		return nil, errors.New("no triangles provided")
 	}
 
-	poly := Polygon(tri)
-	polyPointer := &poly
-	// Create and insert triangle wrapper
-	tw := &triangleWrapper{
-		points:   tri.Points(),
-		original: polyPointer,
-		bbox:     rect,
-	}
-	idx.rtree.Insert(tw)
-	idx.polys[id] = polyPointer
+	lookupMap := make(map[string]*Polygon, len(triangles))
+	spacials := make([]rtreego.Spatial, len(triangles))
+	bounds := triangles[0].Bound()
 
-	return nil
+	for i, tri := range triangles {
+		rectBounds := tri.Bound()
+		bounds = bounds.Union(rectBounds)
+
+		rect, err := rtreego.NewRectFromPoints(
+			rtreego.Point{rectBounds.Min[0] - 1e-7, rectBounds.Min[1] - 1e-7},
+			rtreego.Point{rectBounds.Max[0] + 1e-7, rectBounds.Max[1] + 1e-7},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		poly := Polygon(tri)
+		polyPointer := &poly
+		// Create and insert triangle wrapper
+		tw := &triangleWrapper{
+			points:   tri.Points(),
+			original: polyPointer,
+			bbox:     rect,
+		}
+
+		lookupMap[poly.ID()] = polyPointer
+		spacials[i] = tw
+	}
+
+	rtree := rtreego.NewTree(2, 25, 50, spacials...)
+
+	return &Index{
+		rtree:  rtree,
+		polys:  lookupMap,
+		bounds: bounds,
+	}, nil
 }
 
 // Insert implements SpatialIndexer

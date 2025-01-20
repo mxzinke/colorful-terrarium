@@ -21,17 +21,12 @@ func loadIndexerFromTrianglePkg(path string) (polygon.SpatialIndexer, error) {
 		return nil, err
 	}
 
-	// Create a new polygon indexer
-	indexer := polygon.New()
-
 	log.Printf("Loading polygon index with %d triangles", len(triangles))
 
 	// Insert the triangles into the indexer
-	for _, triangle := range triangles {
-		err := indexer.InsertTriangle(triangle.ID(), triangle)
-		if err != nil {
-			log.Fatal(err)
-		}
+	indexer, err := polygon.CreateIndexFromTriangles(triangles)
+	if err != nil {
+		return nil, err
 	}
 
 	return indexer, nil
