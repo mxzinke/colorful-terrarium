@@ -17,8 +17,8 @@ type TileBounds struct {
 }
 
 func CreateTileBounds(zoom, tileY, tileX uint32, tileSize int) *TileBounds {
-	minLat, maxLat := getTileLatitudes(zoom, tileX)
-	minLon, maxLon := getTileLongitudes(zoom, tileY)
+	minLat, maxLat := getTileLatitudes(zoom, tileY)
+	minLon, maxLon := getTileLongitudes(zoom, tileX)
 
 	// Mercator projection is non-linear, so we need to convert to radians,
 	// interpolate in projected space, then convert back

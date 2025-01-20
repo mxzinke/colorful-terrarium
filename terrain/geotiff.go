@@ -15,7 +15,7 @@ const geotiffSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/geotiff/
 
 func GetElevationMapFromGeoTIFF(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
 	// GeoTIFF fetching...
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(geotiffSourceURL, coord.Z, coord.Y, coord.X), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(geotiffSourceURL, coord.Z, coord.X, coord.Y), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request for GeoTIFF: %w", err)
 	}

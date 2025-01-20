@@ -17,7 +17,7 @@ const terrariumSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/terrar
 const tileSize = 256 // Standard tile size
 
 func GetElevationMapForTerrarium(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
-	tiles, err := downloadSubTiles(ctx, coord.Z, coord.Y, coord.X)
+	tiles, err := downloadSubTiles(ctx, coord.Z, coord.X, coord.Y)
 	if err != nil {
 		log.Printf("Error downloading subtiles: %v", err)
 		return nil, err
