@@ -72,7 +72,7 @@ chown -R www-data:www-data /var/cache/nginx
 
 # Configure Nginx
 cat > /etc/nginx/conf.d/proxy-cache.conf << 'EOL'
-proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=10g inactive=30d use_temp_path=off;
+proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=30g inactive=30d use_temp_path=off;
 
 server {
     listen 80;
