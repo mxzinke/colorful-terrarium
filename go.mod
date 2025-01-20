@@ -10,6 +10,9 @@ require (
 )
 
 require (
+	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/gorilla/handlers v1.5.2 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/stretchr/testify v1.7.2 // indirect
 	go.mongodb.org/mongo-driver v1.11.4 // indirect
 	google.golang.org/protobuf v1.36.3 // indirect

@@ -5,6 +5,9 @@ import (
 )
 
 type TileBounds struct {
+	Zoom    uint32
+	TileX   uint32
+	TileY   uint32
 	MinLat  float64
 	MaxLat  float64
 	MinLon  float64
