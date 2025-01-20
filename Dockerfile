@@ -28,12 +28,12 @@ RUN adduser -D $USER
 USER $USER
 WORKDIR /home/$USER
 
+# copy data (geojson)
+COPY data/ ./data/
+
 # copy binary
 COPY --from=builder /app-binary .
 
 EXPOSE 8080
-
-# copy data (geojson)
-COPY data/ ./data/
 
 CMD ["./app-binary"]
