@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"log"
 	"math"
@@ -12,14 +13,29 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mxzinke/colorful-terrarium/colors"
 	"github.com/mxzinke/colorful-terrarium/colors/color_v1"
+	"github.com/mxzinke/colorful-terrarium/colors/terrarium"
 	"github.com/mxzinke/colorful-terrarium/terrain"
 )
 
 func MainHandler(geoCoverage *terrain.GeoCoverage) http.Handler {
 	mux := mux.NewRouter()
 
-	colorHandler := configureHandler(color_v1.NewColorV1Provider(), geoCoverage)
-	mux.HandleFunc("/color-v1/{z:[1-2]?[0-9]}/{y:[0-9]+}/{x:[0-9]+}.png", colorHandler)
+	providers := []colors.ColorProvider{
+		color_v1.NewColorV1Provider(),
+		terrarium.NewLandTerrariumProfile(),
+		terrarium.NewWaterTerrariumProfile(),
+	}
+
+	for _, provider := range providers {
+		handler := configureHandler(provider, geoCoverage)
+		mux.HandleFunc(fmt.Sprintf("/%s/{z:[1-2]?[0-9]}/{y:[0-9]+}/{x:[0-9]+}.%s", provider.Name(), provider.FileType()), handler)
+	}
+
+	terrariumLandHandler := configureHandler(terrarium.NewLandTerrariumProfile(), geoCoverage)
+	mux.HandleFunc("/terrarium-land/{z:[1-2]?[0-9]}/{y:[0-9]+}/{x:[0-9]+}.png", terrariumLandHandler)
+
+	terrariumWaterHandler := configureHandler(terrarium.NewWaterTerrariumProfile(), geoCoverage)
+	mux.HandleFunc("/terrarium-water/{z:[1-2]?[0-9]}/{y:[0-9]+}/{x:[0-9]+}.png", terrariumWaterHandler)
 
 	return mux
 }

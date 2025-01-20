@@ -42,6 +42,24 @@
             tileSize: 512,
             attribution: 'Terrain data',
             maxzoom: 13
+          },
+          "terrarium-land": {
+            type: "raster-dem",
+            tiles: [
+              "http://localhost:8080/terrarium-land/{z}/{y}/{x}.png"
+            ],
+            tileSize: 512,
+            attribution: "Terrain data",
+            maxzoom: 13
+          },
+          "terrarium-water": {
+            type: "raster-dem",
+            tiles: [
+              "http://localhost:8080/terrarium-water/{z}/{y}/{x}.png"
+            ],
+            tileSize: 512,
+            attribution: "Terrain data",
+            maxzoom: 13
           }
         },
         layers: [
@@ -51,6 +69,30 @@
             source: 'terrain',
             paint: {
               'raster-opacity': 1
+            }
+          },
+          {
+            id: "hillshade",
+            type: "hillshade",
+            source: "terrarium-land",
+            paint: {
+              "hillshade-illumination-anchor": "map",
+              "hillshade-exaggeration": 0.7,
+              "hillshade-accent-color": "rgba(0, 0, 0, 0.1)",
+              "hillshade-shadow-color": "rgba(0, 0, 0, 0.2)",
+              "hillshade-highlight-color": "rgba(255, 255, 255, 0.2)",
+            }
+          },
+          {
+            id: "hillshade-water",
+            type: "hillshade",
+            source: "terrarium-water",
+            paint: {
+              "hillshade-illumination-anchor": "map",
+              "hillshade-exaggeration": 0.1,
+              "hillshade-accent-color": "rgba(255, 255, 255, 0.1)",
+              "hillshade-shadow-color": "rgba(255, 255, 255, 0.2)",
+              "hillshade-highlight-color": "rgba(0, 0, 0, 0.2)",
             }
           }
         ]
