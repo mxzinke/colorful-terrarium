@@ -106,11 +106,16 @@ server {
         }
 
         proxy_cache my_cache;
-        proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
-        proxy_cache_valid 200 30d;
+        proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504 updating;
+        proxy_cache_valid 200 202 30d;
         proxy_cache_valid any 1m;
         proxy_cache_min_uses 1;
+        proxy_cache_background_update on;
+        proxy_cache_lock on;
+        proxy_cache_lock_age 60s;
+        proxy_cache_revalidate on;
         proxy_cache_bypass $http_cache_control;
+        proxy_cache_key "$host$request_uri";
         add_header X-Cache-Status $upstream_cache_status;
 
         proxy_pass http://localhost:8080;
