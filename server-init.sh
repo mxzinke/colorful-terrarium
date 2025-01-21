@@ -74,12 +74,37 @@ chown -R www-data:www-data /var/cache/nginx
 cat > /etc/nginx/conf.d/proxy-cache.conf << 'EOL'
 proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=30g inactive=30d use_temp_path=off;
 
+map "$http_origin" $cors {
+    default '';
+    "~^http://localhost(:[0-9]+)?$" "$http_origin";
+    "https://mapstudio.ai" "$http_origin";
+}
+
 server {
     listen 80;
     listen [::]:80;
     server_name _;
 
     location / {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' $cors;
+            add_header 'Access-Control-Allow-Credentials' 'false' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        if ($request_method = 'GET') {
+            add_header 'Access-Control-Allow-Origin' $cors;
+            add_header 'Access-Control-Allow-Credentials' 'false' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+            add_header 'Access-Control-Expose-Headers' 'Content-Encoding,Content-Length,Content-Range,X-Cache-Status' always;
+        }
+
         proxy_cache my_cache;
         proxy_cache_use_stale error timeout http_500 http_502 http_503 http_504;
         proxy_cache_valid 200 30d;
