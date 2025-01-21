@@ -1,7 +1,7 @@
 package main
 
 import (
-	"compress/gzip"
+	"compress/zlib"
 	"log"
 	"net/http"
 
@@ -25,11 +25,8 @@ func main() {
 	if err := http.ListenAndServe(
 		addr,
 		handlers.CompressHandlerLevel(
-			handlers.CORS(
-				handlers.AllowedOrigins([]string{"*"}),
-				handlers.AllowedMethods([]string{"GET"}),
-			)(MainHandler(geoCoverage)),
-			gzip.BestCompression),
+			MainHandler(geoCoverage),
+			zlib.BestCompression),
 	); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
