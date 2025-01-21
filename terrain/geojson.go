@@ -48,5 +48,7 @@ func loadIndexerFromGeojson(path string) (polygon.SpatialIndexer, error) {
 		}
 	}
 
+	log.Printf("Loaded %d triangles (from %d features) into index", polys.Size(), len(fc.Features))
+
 	return polys, nil
 }

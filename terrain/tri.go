@@ -29,5 +29,7 @@ func loadIndexerFromTrianglePkg(path string) (polygon.SpatialIndexer, error) {
 		return nil, err
 	}
 
+	log.Printf("Loaded %d triangles into index", indexer.Size())
+
 	return indexer, nil
 }

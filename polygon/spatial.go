@@ -59,6 +59,10 @@ func New() *Index {
 	}
 }
 
+func (idx *Index) Size() int {
+	return idx.rtree.Size()
+}
+
 func CreateIndexFromTriangles(triangles []triangle.Triangle) (*Index, error) {
 	if len(triangles) == 0 {
 		return nil, errors.New("no triangles provided")

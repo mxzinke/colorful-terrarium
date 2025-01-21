@@ -88,6 +88,9 @@ func configureHandler(provider colors.ColorProvider, geoCoverage *terrain.GeoCov
 		// Create tile bounds (calculation for pixel lat/lng mapping)
 		tile := CreateTileBounds(uint32(z), uint32(y), uint32(x), elevationMap.TileSize)
 
+		// Fixing the elevation data on some parts of the world
+		fixElevationMap(elevationMap, tile, geoCoverage)
+
 		cells, err := GetCellsForTile(elevationMap, tile, geoCoverage)
 		if err != nil {
 			http.Error(w, "Failed to get cells for tile", http.StatusInternalServerError)

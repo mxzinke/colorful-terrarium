@@ -16,6 +16,8 @@ type GeoCoverage struct {
 	innerDeserts polygon.SpatialIndexer
 	outerDeserts polygon.SpatialIndexer
 	land         polygon.SpatialIndexer
+	highFixInner polygon.SpatialIndexer
+	highFixOuter polygon.SpatialIndexer
 }
 
 type internalPolygon struct {
@@ -38,8 +40,10 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 	var innerDeserts polygon.SpatialIndexer
 	var outerDeserts polygon.SpatialIndexer
 	var land polygon.SpatialIndexer
+	var highFixInner polygon.SpatialIndexer
+	var highFixOuter polygon.SpatialIndexer
 
-	wg.Add(4)
+	wg.Add(6)
 	go func() {
 		val, err := loadIndexerFromTrianglePkg("./data/glaciers.tri.pbf")
 		if err != nil {
@@ -76,6 +80,24 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 		wg.Done()
 	}()
 
+	go func() {
+		val, err := loadIndexerFromGeojson("./data/high-fix-inner.geojson")
+		if err != nil {
+			log.Fatal(err)
+		}
+		highFixInner = val
+		wg.Done()
+	}()
+
+	go func() {
+		val, err := loadIndexerFromGeojson("./data/high-fix-outer.geojson")
+		if err != nil {
+			log.Fatal(err)
+		}
+		highFixOuter = val
+		wg.Done()
+	}()
+
 	wg.Wait()
 
 	return &GeoCoverage{
@@ -83,6 +105,8 @@ func LoadGeoCoverage() (*GeoCoverage, error) {
 		innerDeserts: innerDeserts,
 		outerDeserts: outerDeserts,
 		land:         land,
+		highFixInner: highFixInner,
+		highFixOuter: highFixOuter,
 	}, nil
 }
 
@@ -95,44 +119,50 @@ func (gc *GeoCoverage) IsPointInIce(lon, lat float64) bool {
 }
 
 func (gc *GeoCoverage) DesertFactorForPoint(lon, lat float64) float64 {
-	outerDesertPolys := gc.outerDeserts.PointInPolygons(orb.Point{lon, lat})
-	// When not somewhere in the desert zone
-	if len(outerDesertPolys) == 0 {
+	return distanceFactorForPoint(orb.Point{lon, lat}, gc.innerDeserts, gc.outerDeserts)
+}
+
+func (gc *GeoCoverage) HighFixFactorForPoint(lon, lat float64) float64 {
+	return distanceFactorForPoint(orb.Point{lon, lat}, gc.highFixInner, gc.highFixOuter)
+}
+
+func distanceFactorForPoint(point orb.Point, inner, outer polygon.SpatialIndexer) float64 {
+	outerPolys := outer.PointInPolygons(point)
+	if len(outerPolys) == 0 {
 		return 0.0
 	}
 
-	innerDesertPolys := gc.innerDeserts.PointInPolygons(orb.Point{lon, lat})
-	if len(innerDesertPolys) > 0 {
+	innerPolys := inner.PointInPolygons(point)
+	if len(innerPolys) > 0 {
 		return 1.0
 	}
 
-	distancePolygons := make([]*polygon.Polygon, len(outerDesertPolys))
-	for i, poly := range outerDesertPolys {
-		inner := gc.innerDeserts.PolygonByID((*poly).ID())
+	distancePolygons := make([]*polygon.Polygon, len(outerPolys))
+	for i, poly := range outerPolys {
+		inner := inner.PolygonByID((*poly).ID())
 		if inner == nil {
-			log.Fatalf("no inner polygon found for %s", (*poly).ID())
+			log.Printf("WARNING: no inner polygon found for %s", (*poly).ID())
 			distancePolygons[i] = poly
 		}
 		distancePolygons[i] = inner
 	}
 
 	if len(distancePolygons) == 0 {
-		log.Fatalf("no distance polygons found for point %f, %f", lon, lat)
-		panic("no distance polygons found for point")
+		log.Fatalf("no distance polygons found for point %f, %f", point.Lon(), point.Lat())
 	}
 
 	// Important, to use the same polygon for both distance calculations
 	idWithDistanceToInner := (*distancePolygons[0]).ID()
 
 	// Find the closest inner polygon
-	distanceToInner := polygon.DistanceToPolygon(orb.Point{lon, lat}, *distancePolygons[0])
+	distanceToInner := polygon.DistanceToPolygon(point, *distancePolygons[0])
 	if len(distancePolygons) > 1 {
 		for i, poly := range distancePolygons {
 			if i == 0 {
 				continue
 			}
 
-			distance := polygon.DistanceToPolygon(orb.Point{lon, lat}, *poly)
+			distance := polygon.DistanceToPolygon(point, *poly)
 			if distance < distanceToInner {
 				distanceToInner = distance
 				idWithDistanceToInner = (*poly).ID()
@@ -140,12 +170,12 @@ func (gc *GeoCoverage) DesertFactorForPoint(lon, lat float64) float64 {
 		}
 	}
 
-	outerDistancePoly := gc.outerDeserts.PolygonByID(idWithDistanceToInner)
+	outerDistancePoly := outer.PolygonByID(idWithDistanceToInner)
 	if outerDistancePoly == nil {
 		log.Fatalf("Fatal Error: no same as outer polygon found for %s", idWithDistanceToInner)
-		outerDistancePoly = outerDesertPolys[0]
+		outerDistancePoly = outerPolys[0]
 	}
-	distanceToOuter := polygon.DistanceToPolygon(orb.Point{lon, lat}, *outerDistancePoly)
+	distanceToOuter := polygon.DistanceToPolygon(point, *outerDistancePoly)
 
 	return 1 - math.Max(0.0, math.Min(distanceToInner/(distanceToInner+distanceToOuter), 1.0))
 }
