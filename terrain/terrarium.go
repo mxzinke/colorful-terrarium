@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const terrariumSourceURL = "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/%d/%d/%d.png"
+const terrariumSourceURL = "https://elevation-tiles-prod.s3.dualstack.us-east-1.amazonaws.com/terrarium/%d/%d/%d.png"
 const tileSize = 256 // Standard tile size
 
 func GetElevationMapForTerrarium(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
