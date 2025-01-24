@@ -149,7 +149,7 @@ After=docker.service
 
 [Service]
 Restart=always
-ExecStart=/usr/bin/docker run --rm --name colorful-terrarium -p 8080:8080 ghcr.io/mxzinke/colorful-terrarium:latest
+ExecStart=/usr/bin/docker run --rm --net=host --dns 2a01:4f8:c2c:123f::1 --dns 2a00:1098:2b::1 --name colorful-terrarium ghcr.io/mxzinke/colorful-terrarium:latest
 ExecStop=/usr/bin/docker stop colorful-terrarium
 
 [Install]
