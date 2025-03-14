@@ -61,8 +61,8 @@ func GetColorFromPalette(elevation float32, palette ColorPalette) Color {
 // EncodePNGOptimized creates a PNG encoder with optimal compression settings
 func EncodePNGOptimized(w io.Writer, img image.Image) error {
 	encoder := &png.Encoder{
-		CompressionLevel: png.BestCompression, // Maximum compression
-		BufferPool:       nil,                 // Use default buffer pool
+		CompressionLevel: png.NoCompression, // No compression => fast encoding
+		BufferPool:       nil,               // Use default buffer pool
 	}
 	return encoder.Encode(w, img)
 }
