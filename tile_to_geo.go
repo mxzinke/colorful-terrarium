@@ -2,6 +2,8 @@ package main
 
 import (
 	"math"
+
+	"github.com/paulmach/orb"
 )
 
 type TileBounds struct {
@@ -72,6 +74,13 @@ func (tb *TileBounds) GetPixelLat(y int) float64 {
 
 func (tb *TileBounds) GetPixelLng(x int) float64 {
 	return tb.xLookup[x]
+}
+
+func (tb *TileBounds) Bound() orb.Bound {
+	return orb.Bound{
+		Min: orb.Point{tb.MinLon, tb.MinLat},
+		Max: orb.Point{tb.MaxLon, tb.MaxLat},
+	}
 }
 
 // getTileLatitudes calculates the minimum and maximum latitudes for a given tile

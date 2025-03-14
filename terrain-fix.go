@@ -12,6 +12,11 @@ func fixElevationMap(elevationMap *terrain.ElevationMap, tileBounds *TileBounds,
 		return
 	}
 
+	hasFixFactors := geoCoverage.HasBoundsAnyFixFactors(tileBounds.Bound())
+	if !hasFixFactors {
+		return
+	}
+
 	for y, row := range elevationMap.Data {
 		lat := tileBounds.GetPixelLat(y)
 		for x, cell := range row {

@@ -27,6 +27,9 @@ type SpatialIndexer interface {
 	// PointInAnyPolygon checks if a point lies within any indexed polygons, returns true if it does
 	PointInAnyPolygon(p orb.Point) bool
 
+	// BoundsInAnyPolygon checks if a given bounds lies within any indexed polygons, returns true if it does
+	BoundsInAnyPolygon(b orb.Bound) bool
+
 	// PolygonByID returns a polygon by its ID
 	PolygonByID(id string) *Polygon
 }
@@ -183,6 +186,20 @@ func (idx *Index) PointInAnyPolygon(p orb.Point) bool {
 		}
 	}
 	return false
+}
+
+func (idx *Index) BoundsInAnyPolygon(b orb.Bound) bool {
+	rect, err := rtreego.NewRectFromPoints(
+		rtreego.Point{b.Min[0], b.Min[1]},
+		rtreego.Point{b.Max[0], b.Max[1]},
+	)
+	if err != nil {
+		log.Printf("error creating rect for bounds in any polygon search: %v", err)
+		return false
+	}
+
+	results := idx.rtree.SearchIntersectWithLimit(1, rect)
+	return len(results) > 0
 }
 
 func (idx *Index) PolygonByID(id string) *Polygon {

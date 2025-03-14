@@ -122,6 +122,10 @@ func (gc *GeoCoverage) DesertFactorForPoint(lon, lat float64) float64 {
 	return distanceFactorForPoint(orb.Point{lon, lat}, gc.innerDeserts, gc.outerDeserts)
 }
 
+func (gc *GeoCoverage) HasBoundsAnyFixFactors(b orb.Bound) bool {
+	return gc.highFixOuter.BoundsInAnyPolygon(b)
+}
+
 func (gc *GeoCoverage) HighFixFactorForPoint(lon, lat float64) float64 {
 	return distanceFactorForPoint(orb.Point{lon, lat}, gc.highFixInner, gc.highFixOuter)
 }
