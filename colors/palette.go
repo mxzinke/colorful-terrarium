@@ -10,8 +10,8 @@ type Color struct {
 	A       uint8
 }
 
-func (c Color) RGBA() img_color.RGBA {
-	return img_color.RGBA{c.R, c.G, c.B, c.A}
+func (c Color) RGBA() img_color.NRGBA {
+	return img_color.NRGBA{c.R, c.G, c.B, c.A}
 }
 
 // ColorStop defines a color at a specific elevation
