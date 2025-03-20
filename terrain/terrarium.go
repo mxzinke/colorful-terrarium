@@ -17,15 +17,18 @@ const terrariumSourceURL = "https://elevation-tiles-prod.s3.dualstack.us-east-1.
 const tileSize = 256 // Standard tile size
 
 func GetElevationMapForTerrarium(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
-	tiles, err := downloadSubTiles(ctx, coord.Z, coord.X, coord.Y)
-	if err != nil {
-		log.Printf("Error downloading subtiles: %v", err)
-		return nil, err
-	}
+	return globalCache.GetOrCreate(coord, func() (*ElevationMap, error) {
+		tiles, err := downloadSubTiles(ctx, coord.Z, coord.X, coord.Y)
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+			log.Printf("Error downloading subtiles: %v", err)
+			return nil, err
+		}
 
-	img := compositeImages(tiles)
-
-	return newElevationMapFromTerrarium(img), nil
+		return newElevationMapFromTerrarium(compositeImages(tiles)), nil
+	})
 }
 
 func downloadTile(ctx context.Context, coord TileCoord) (image.Image, error) {
@@ -33,6 +36,10 @@ func downloadTile(ctx context.Context, coord TileCoord) (image.Image, error) {
 	retryDelay := 200 * time.Millisecond
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 			log.Printf("Retry attempt %d for tile %d/%d/%d", attempt, coord.Z, coord.Y, coord.X)
@@ -47,6 +54,10 @@ func downloadTile(ctx context.Context, coord TileCoord) (image.Image, error) {
 
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
+
 			log.Printf("Download error (attempt %d): %v", attempt+1, err)
 			continue
 		}
@@ -110,6 +121,10 @@ func downloadSubTiles(ctx context.Context, parentZ, parentY, parentX uint32) ([]
 	// Wait for all downloads to complete
 	wg.Wait()
 	close(errors)
+
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 
 	// Check for any errors
 	for err := range errors {

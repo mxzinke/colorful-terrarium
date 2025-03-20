@@ -41,7 +41,7 @@
             ],
             tileSize: 512,
             attribution: 'Terrain data',
-            maxzoom: 13
+            maxzoom: 13,
           },
           "terrarium-land": {
             type: "raster-dem",
@@ -50,7 +50,18 @@
             ],
             tileSize: 512,
             attribution: "Terrain data",
-            maxzoom: 13
+            maxzoom: 13,
+            encoding: "terrarium"
+          },
+          "terrain-source": {
+            type: "raster-dem",
+            tiles: [
+              "http://localhost:8080/terrarium-land/{z}/{y}/{x}.png"
+            ],
+            tileSize: 512,
+            attribution: "Terrain data",
+            maxzoom: 13,
+            encoding: "terrarium"
           },
           "terrarium-water": {
             type: "raster-dem",
@@ -59,7 +70,8 @@
             ],
             tileSize: 512,
             attribution: "Terrain data",
-            maxzoom: 13
+            maxzoom: 13,
+            encoding: "terrarium"
           }
         },
         layers: [
@@ -98,7 +110,11 @@
         ]
       },
       center: [11.0, 49.0],  // Nürnberg
-      zoom: 6
+      zoom: 6,
+      terrain: {
+        source: "terrain-source",
+        exaggeration: 1,
+      }
     });
   </script>
 </body>

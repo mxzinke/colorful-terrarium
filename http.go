@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mxzinke/colorful-terrarium/colors"
 	"github.com/mxzinke/colorful-terrarium/colors/color_v1"
-	"github.com/mxzinke/colorful-terrarium/colors/mono-terrain"
+	mono_terrain "github.com/mxzinke/colorful-terrarium/colors/mono-terrain"
 	"github.com/mxzinke/colorful-terrarium/colors/terrarium"
 	"github.com/mxzinke/colorful-terrarium/terrain"
 )
@@ -82,7 +82,7 @@ func configureHandler(provider colors.ColorProvider, geoCoverage *terrain.GeoCov
 		}()
 
 		// Download subtiles
-		elevationMap, err := terrain.GetElevationMapFromGeoTIFF(ctx, terrain.TileCoord{Z: uint32(z), Y: uint32(y), X: uint32(x)})
+		elevationMap, err := terrain.GetElevationMapForTerrarium(ctx, terrain.TileCoord{Z: uint32(z), Y: uint32(y), X: uint32(x)})
 		if err != nil {
 			http.Error(w, "Failed to get source data for tile", http.StatusInternalServerError)
 			return

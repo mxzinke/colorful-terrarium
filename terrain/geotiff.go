@@ -7,135 +7,47 @@ import (
 	"image/color"
 	"io"
 	"net/http"
-	"sync"
-	"time"
 
 	tiff "github.com/chai2010/tiff"
 )
 
 const geotiffSourceURL = "https://elevation-tiles-prod.s3.dualstack.us-east-1.amazonaws.com/geotiff/%d/%d/%d.tif"
 
-// cacheEntry represents a cached elevation map with its expiration time
-type cacheEntry struct {
-	data      *ElevationMap
-	expiresAt time.Time
-}
-
-// elevationCache is a thread-safe cache for elevation maps
-type elevationCache struct {
-	mu      sync.RWMutex
-	entries map[string]cacheEntry
-	done    chan struct{} // Channel to signal cleanup goroutine to stop
-}
-
-// newElevationCache creates a new elevation cache and starts the cleanup routine
-func newElevationCache() *elevationCache {
-	cache := &elevationCache{
-		entries: make(map[string]cacheEntry),
-		done:    make(chan struct{}),
-	}
-	go cache.startCleanupRoutine()
-	return cache
-}
-
-// startCleanupRoutine starts a goroutine that periodically cleans up expired entries
-func (c *elevationCache) startCleanupRoutine() {
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			c.cleanup()
-		case <-c.done:
-			return
-		}
-	}
-}
-
-// cleanup removes expired entries from the cache
-func (c *elevationCache) cleanup() {
-	now := time.Now()
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for key, entry := range c.entries {
-		if now.After(entry.expiresAt) {
-			delete(c.entries, key)
-		}
-	}
-}
-
-// Stop stops the cleanup routine
-func (c *elevationCache) Stop() {
-	close(c.done)
-}
-
-// getCacheKey generates a unique key for a tile coordinate
-func getCacheKey(coord TileCoord) string {
-	return fmt.Sprintf("%d/%d/%d", coord.Z, coord.X, coord.Y)
-}
-
-var (
-	// Global cache instance
-	globalCache = newElevationCache()
-	// Cache expiration duration - increased to 5 minutes since cleanup is now active
-	cacheExpiration = 5 * time.Minute
-)
-
 func GetElevationMapFromGeoTIFF(ctx context.Context, coord TileCoord) (*ElevationMap, error) {
-	cacheKey := getCacheKey(coord)
+	return globalCache.GetOrCreate(coord, func() (*ElevationMap, error) {
+		// If not in cache or expired, fetch new data
+		req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(geotiffSourceURL, coord.Z, coord.X, coord.Y), nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request for GeoTIFF: %w", err)
+		}
 
-	// Try to get from cache first
-	globalCache.mu.RLock()
-	if entry, exists := globalCache.entries[cacheKey]; exists && time.Now().Before(entry.expiresAt) {
-		globalCache.mu.RUnlock()
-		return entry.data, nil
-	}
-	globalCache.mu.RUnlock()
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download GeoTIFF: %w", err)
+		}
+		defer res.Body.Close()
 
-	// If not in cache or expired, fetch new data
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf(geotiffSourceURL, coord.Z, coord.X, coord.Y), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request for GeoTIFF: %w", err)
-	}
+		if res.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("HTTP error %d", res.StatusCode)
+		}
 
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download GeoTIFF: %w", err)
-	}
-	defer res.Body.Close()
+		data, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read TIFF: %v", err)
+		}
 
-	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP error %d", res.StatusCode)
-	}
+		// Create a new TIFF reader
+		matrix, tileSize, err := readTIFFToFloat32Matrix(data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode TIFF: %v", err)
+		}
 
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read TIFF: %v", err)
-	}
-
-	// Create a new TIFF reader
-	matrix, tileSize, err := readTIFFToFloat32Matrix(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode TIFF: %v", err)
-	}
-
-	// Copy over data to ElevationMap
-	em := &ElevationMap{
-		Data:     matrix,
-		TileSize: tileSize,
-	}
-
-	// Store in cache
-	globalCache.mu.Lock()
-	globalCache.entries[cacheKey] = cacheEntry{
-		data:      em,
-		expiresAt: time.Now().Add(cacheExpiration),
-	}
-	globalCache.mu.Unlock()
-
-	return em, nil
+		// Copy over data to ElevationMap
+		return &ElevationMap{
+			Data:     matrix,
+			TileSize: tileSize,
+		}, nil
+	})
 }
 
 func readTIFFToFloat32Matrix(data []byte) ([][]float32, int, error) {
