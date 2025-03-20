@@ -1,15 +1,14 @@
 package terrarium
 
 import (
+	img_color "image/color"
 	"image/png"
 	"math"
-
-	"github.com/mxzinke/colorful-terrarium/colors"
 )
 
 var (
-	ZeroElevation = colors.Color{R: 128, G: 0, B: 0, A: 255}
-	IceElevation  = colors.Color{R: 128, G: 3, B: 0, A: 255}
+	ZeroElevation = img_color.NRGBA{128, 0, 0, 255}
+	IceElevation  = img_color.NRGBA{128, 3, 0, 255}
 )
 
 func noCompressionEncoder() *png.Encoder {
@@ -19,9 +18,9 @@ func noCompressionEncoder() *png.Encoder {
 	}
 }
 
-func encodeElevationToTerrarium(elevation float64) colors.Color {
+func encodeElevationToTerrarium(elevation float64) img_color.NRGBA {
 	v := elevation + 32768
-	return colors.Color{
+	return img_color.NRGBA{
 		R: uint8(math.Floor(v / 256.0)),
 		G: uint8(math.Floor(math.Mod(v, 256.0))),
 		B: uint8(math.Floor((v - math.Floor(v)) * 256)),

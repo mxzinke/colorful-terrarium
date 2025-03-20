@@ -27,29 +27,29 @@ func (w *WaterTerrariumProfile) MaxZoom() uint32 {
 	return 14
 }
 
-func (w *WaterTerrariumProfile) GetColor(ctx context.Context, input colors.ColorInput) ([][]colors.Color, error) {
-	terrariumColors := make([][]colors.Color, len(input.DataMap))
-	for i, row := range input.DataMap {
-		terrariumColors[i] = make([]colors.Color, len(row))
+func (w *WaterTerrariumProfile) GetImage(ctx context.Context, imgRect image.Rectangle, input colors.ColorInput) (image.Image, error) {
+	output := image.NewNRGBA(imgRect)
 
-		for j, cell := range row {
+	for y, row := range input.DataMap {
+
+		for x, cell := range row {
 			if cell.IsLand() {
-				terrariumColors[i][j] = ZeroElevation
+				output.Set(x, y, ZeroElevation)
 				continue
 			}
 
 			if cell.IsIce() {
-				terrariumColors[i][j] = IceElevation
+				output.Set(x, y, IceElevation)
 			}
 
 			if cell.Elevation() == 0 {
-				terrariumColors[i][j] = ZeroElevation
+				output.Set(x, y, ZeroElevation)
 			} else {
-				terrariumColors[i][j] = encodeElevationToTerrarium(float64(cell.Elevation()))
+				output.Set(x, y, encodeElevationToTerrarium(float64(cell.Elevation())))
 			}
 		}
 	}
-	return terrariumColors, nil
+	return output, nil
 }
 
 func (water *WaterTerrariumProfile) EncodeImage(w io.Writer, image image.Image) error {

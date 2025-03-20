@@ -107,7 +107,9 @@ func configureHandler(provider colors.ColorProvider, geoCoverage *terrain.GeoCov
 		}
 
 		// Get color for each cell
-		colorMap, err := provider.GetColor(ctx, colors.ColorInput{
+		imgRect := image.Rect(0, 0, elevationMap.TileSize, elevationMap.TileSize)
+
+		img, err := provider.GetImage(ctx, imgRect, colors.ColorInput{
 			Zoom:    uint32(z),
 			DataMap: dataMap,
 		})
@@ -120,20 +122,9 @@ func configureHandler(provider colors.ColorProvider, geoCoverage *terrain.GeoCov
 			return
 		}
 
-		output := image.NewNRGBA(image.Rect(0, 0, elevationMap.TileSize, elevationMap.TileSize))
-		for y, row := range colorMap {
-			for x, colorPoint := range row {
-				output.Set(x, y, colorPoint.RGBA())
-			}
-		}
-
-		if ctx.Err() != nil {
-			return
-		}
-
 		w.WriteHeader(http.StatusOK)
 
-		err = provider.EncodeImage(w, output)
+		err = provider.EncodeImage(w, img)
 		if err != nil {
 			http.Error(w, "Failed to encode image", http.StatusInternalServerError)
 			return

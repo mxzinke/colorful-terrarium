@@ -7,6 +7,8 @@ import (
 	"io"
 	"math"
 
+	img_color "image/color"
+
 	colors "github.com/mxzinke/colorful-terrarium/colors"
 )
 
@@ -89,7 +91,7 @@ func (p *ColorV1Provider) MaxZoom() uint32 {
 	return 13
 }
 
-func (p *ColorV1Provider) GetColor(ctx context.Context, input colors.ColorInput) ([][]colors.Color, error) {
+func (p *ColorV1Provider) GetImage(ctx context.Context, imgRect image.Rectangle, input colors.ColorInput) (image.Image, error) {
 	if input.Zoom > p.MaxZoom() {
 		return nil, fmt.Errorf("zoom level %d is not supported", input.Zoom)
 	}
@@ -102,18 +104,16 @@ func (p *ColorV1Provider) GetColor(ctx context.Context, input colors.ColorInput)
 		return nil, ctx.Err()
 	}
 
-	colorsOutput := make([][]colors.Color, len(input.DataMap))
-	for i, row := range input.DataMap {
-		colorsOutput[i] = make([]colors.Color, len(row))
-
-		for j, cell := range row {
+	output := image.NewNRGBA(imgRect)
+	for y, row := range input.DataMap {
+		for x, cell := range row {
 			elevation := cell.Elevation()
 
 			if !cell.IsLand() {
 				if !cell.IsIce() {
-					colorsOutput[i][j] = colors.GetColorFromPalette(elevation, waterPalette)
+					output.Set(x, y, colors.GetColorFromPalette(elevation, waterPalette).RGBA())
 				} else {
-					colorsOutput[i][j] = colors.GetColorFromPalette(elevation, polarPalette)
+					output.Set(x, y, colors.GetColorFromPalette(elevation, polarPalette).RGBA())
 				}
 				continue
 			}
@@ -123,55 +123,55 @@ func (p *ColorV1Provider) GetColor(ctx context.Context, input colors.ColorInput)
 
 			polarFactor := cell.PolarFactor()
 			if polarFactor == 1 {
-				colorsOutput[i][j] = colors.GetColorFromPalette(elevation, polarPalette)
+				output.Set(x, y, colors.GetColorFromPalette(elevation, polarPalette).RGBA())
 				continue
 			} else if polarFactor > 0 {
 				polarColor := colors.GetColorFromPalette(elevation, polarPalette)
 
 				if cell.IsIce() {
-					colorsOutput[i][j] = polarColor
+					output.Set(x, y, polarColor.RGBA())
 					continue
 				}
 
 				normalColor := colors.GetColorFromPalette(elevation, normalPalette)
 
 				// Interpolate between normal and polar colors
-				colorsOutput[i][j] = colors.Color{
+				output.Set(x, y, img_color.NRGBA{
 					R: uint8(math.Round(float64(normalColor.R)*(1-float64(polarFactor)) + float64(polarColor.R)*float64(polarFactor))),
 					G: uint8(math.Round(float64(normalColor.G)*(1-float64(polarFactor)) + float64(polarColor.G)*float64(polarFactor))),
 					B: uint8(math.Round(float64(normalColor.B)*(1-float64(polarFactor)) + float64(polarColor.B)*float64(polarFactor))),
 					A: uint8(math.Round(float64(normalColor.A)*(1-float64(polarFactor)) + float64(polarColor.A)*float64(polarFactor))),
-				}
+				})
 				continue
 			}
 
 			desertFactor := cell.DesertFactor()
 			if desertFactor == 1 {
-				colorsOutput[i][j] = colors.GetColorFromPalette(elevation, desertPalette)
+				output.Set(x, y, colors.GetColorFromPalette(elevation, desertPalette).RGBA())
 				continue
 			} else if desertFactor > 0 {
 				normalColor := colors.GetColorFromPalette(elevation, normalPalette)
 				desertColor := colors.GetColorFromPalette(elevation, desertPalette)
 
-				colorsOutput[i][j] = colors.Color{
+				output.Set(x, y, img_color.NRGBA{
 					R: uint8(math.Round(float64(normalColor.R)*(1-float64(desertFactor)) + float64(desertColor.R)*float64(desertFactor))),
 					G: uint8(math.Round(float64(normalColor.G)*(1-float64(desertFactor)) + float64(desertColor.G)*float64(desertFactor))),
 					B: uint8(math.Round(float64(normalColor.B)*(1-float64(desertFactor)) + float64(desertColor.B)*float64(desertFactor))),
 					A: uint8(math.Round(float64(normalColor.A)*(1-float64(desertFactor)) + float64(desertColor.A)*float64(desertFactor))),
-				}
+				})
 				continue
 			}
 
 			if cell.IsIce() {
-				colorsOutput[i][j] = colors.GetColorFromPalette(elevation, polarPalette)
+				output.Set(x, y, colors.GetColorFromPalette(elevation, polarPalette).RGBA())
 				continue
 			}
 
-			colorsOutput[i][j] = colors.GetColorFromPalette(elevation, normalPalette)
+			output.Set(x, y, colors.GetColorFromPalette(elevation, normalPalette).RGBA())
 		}
 	}
 
-	return colorsOutput, nil
+	return output, nil
 }
 
 func (p *ColorV1Provider) EncodeImage(w io.Writer, img image.Image) error {

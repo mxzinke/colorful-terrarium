@@ -34,8 +34,8 @@ type ColorProvider interface {
 	Name() string
 	// MaxZoom is the maximum zoom level that this provider can handle
 	MaxZoom() uint32
-	// GetColor returns the color for each cell (for a given input)
-	GetColor(ctx context.Context, input ColorInput) ([][]Color, error)
+	// GetImage returns the color image for each cell (for a given input)
+	GetImage(ctx context.Context, imgRect image.Rectangle, input ColorInput) (image.Image, error)
 	// FileType returns the file type of the image (e.g. "png", "jpg", "webp", etc.)
 	FileType() string
 	// EncodeImage encodes the final image (e.g. to PNG or else) and returns the file type or error
