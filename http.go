@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mxzinke/colorful-terrarium/colors"
 	"github.com/mxzinke/colorful-terrarium/colors/color_v1"
+	"github.com/mxzinke/colorful-terrarium/colors/mono-terrain"
 	"github.com/mxzinke/colorful-terrarium/colors/terrarium"
 	"github.com/mxzinke/colorful-terrarium/terrain"
 )
@@ -24,6 +25,8 @@ func MainHandler(geoCoverage *terrain.GeoCoverage) http.Handler {
 		color_v1.NewColorV1Provider(),
 		terrarium.NewLandTerrariumProfile(),
 		terrarium.NewWaterTerrariumProfile(),
+		mono_terrain.NewLandMonoTerrainProfile(),
+		mono_terrain.NewWaterMonoTerrainProfile(),
 	}
 
 	for _, provider := range providers {
