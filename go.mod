@@ -1,6 +1,6 @@
 module github.com/mxzinke/colorful-terrarium
 
-go 1.23.4
+go 1.24.1
 
 require (
 	github.com/chai2010/tiff v0.0.0-20211005095045-4ec2aa243943
