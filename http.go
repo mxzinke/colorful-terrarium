@@ -133,13 +133,10 @@ func configureHandler(provider colors.ColorProvider, geoCoverage *terrain.GeoCov
 
 		w.WriteHeader(http.StatusOK)
 
-		startEncoding := time.Now()
 		err = provider.EncodeImage(w, output)
 		if err != nil {
 			http.Error(w, "Failed to encode image", http.StatusInternalServerError)
 			return
 		}
-
-		log.Printf("Encoding Time: %s", time.Since(startEncoding).Round(time.Millisecond))
 	}
 }
