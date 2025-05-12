@@ -76,6 +76,8 @@ proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=my_cache:10m max_size=30g
 
 map "$http_origin" $cors {
     default '';
+    "null" 'null';
+    "file://" 'file://';
     "~^http://localhost(:[0-9]+)?$" "$http_origin";
     "https://mapstudio.ai" "$http_origin";
 }
