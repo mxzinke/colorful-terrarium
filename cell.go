@@ -26,7 +26,7 @@ func (c *PixelCell) Elevation() float32 {
 }
 
 func (c *PixelCell) IsLand() bool {
-	if c.elevation < -200 {
+	if c.elevation < -420 {
 		return false
 	}
 	return c.elevation > 100 || c.geoCoverage.IsPointInLand(c.longitude, c.latitude)
