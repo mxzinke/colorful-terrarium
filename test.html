@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Terrain Map Example</title>
 
-  <link href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css' rel='stylesheet' />
-  <script src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js'></script>
+  <link href='https://unpkg.com/maplibre-gl@5.5.0/dist/maplibre-gl.css' rel='stylesheet' />
+  <script src='https://unpkg.com/maplibre-gl@5.5.0/dist/maplibre-gl.js'></script>
 
   <style>
     body {
@@ -37,7 +37,7 @@
           'terrain': {
             type: 'raster',
             tiles: [
-              'http://localhost:8080/color-v1/{z}/{y}/{x}.png'
+              'http://localhost:8080/custom-ikarus/{z}/{y}/{x}.png'
             ],
             tileSize: 512,
             attribution: 'Terrain data',
@@ -46,7 +46,7 @@
           "terrarium-land": {
             type: "raster-dem",
             tiles: [
-              "http://localhost:8080/terrarium-land/{z}/{y}/{x}.png"
+              "https://terrain.mapstudio.ai/terrarium-land/{z}/{y}/{x}.png"
             ],
             tileSize: 512,
             attribution: "Terrain data",
@@ -56,7 +56,7 @@
           "terrain-source": {
             type: "raster-dem",
             tiles: [
-              "http://localhost:8080/terrarium-land/{z}/{y}/{x}.png"
+              "https://terrain.mapstudio.ai/terrarium-land/{z}/{y}/{x}.png"
             ],
             tileSize: 512,
             attribution: "Terrain data",
@@ -66,7 +66,7 @@
           "terrarium-water": {
             type: "raster-dem",
             tiles: [
-              "http://localhost:8080/terrarium-water/{z}/{y}/{x}.png"
+              "https://terrain.mapstudio.ai/terrarium-water/{z}/{y}/{x}.png"
             ],
             tileSize: 512,
             attribution: "Terrain data",
@@ -90,31 +90,32 @@
             paint: {
               "hillshade-illumination-anchor": "map",
               "hillshade-exaggeration": 0.7,
-              "hillshade-accent-color": "rgba(0, 0, 0, 0.1)",
-              "hillshade-shadow-color": "rgba(0, 0, 0, 0.2)",
-              "hillshade-highlight-color": "rgba(255, 255, 255, 0.2)",
+              "hillshade-illumination-direction": 155,
+              "hillshade-accent-color": "rgba(255, 255, 255, 0.1)",
+              "hillshade-shadow-color": "rgba(149, 59, 26, 0.4)",
+              "hillshade-highlight-color": "rgba(255, 255, 255, 0.1)",
             }
           },
-          {
-            id: "hillshade-water",
-            type: "hillshade",
-            source: "terrarium-water",
-            paint: {
-              "hillshade-illumination-anchor": "map",
-              "hillshade-exaggeration": 0.1,
-              "hillshade-accent-color": "rgba(255, 255, 255, 0.1)",
-              "hillshade-shadow-color": "rgba(255, 255, 255, 0.2)",
-              "hillshade-highlight-color": "rgba(0, 0, 0, 0.2)",
-            }
-          }
+          // {
+          //   id: "hillshade-water",
+          //   type: "hillshade",
+          //   source: "terrarium-water",
+          //   paint: {
+          //     "hillshade-illumination-anchor": "map",
+          //     "hillshade-exaggeration": 0.1,
+          //     "hillshade-accent-color": "rgba(255, 255, 255, 0.1)",
+          //     "hillshade-shadow-color": "rgba(255, 255, 255, 0.2)",
+          //     "hillshade-highlight-color": "rgba(0, 0, 0, 0.2)",
+          //   }
+          // }
         ]
       },
       center: [11.0, 49.0],  // Nürnberg
-      zoom: 6,
-      terrain: {
-        source: "terrain-source",
-        exaggeration: 1,
-      }
+      zoom: 6
+      // terrain: {
+      //   source: "terrain-source",
+      //   exaggeration: 1,
+      // }
     });
   </script>
 </body>
