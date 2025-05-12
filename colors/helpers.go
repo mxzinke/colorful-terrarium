@@ -11,15 +11,15 @@ import (
 // It also applies a smoothstep function to the interpolation factor to create a smoother transition between colors.
 // This function can be used as a helper function for any color palette.
 func GetColorFromPalette(elevation float32, palette ColorPalette) Color {
-	// Find color stops for interpolation
-	var lowStop, highStop ColorStop
-
 	if elevation <= palette.Stops[0].Elevation {
 		return palette.Stops[0].Color
 	}
 	if elevation >= palette.Stops[len(palette.Stops)-1].Elevation {
 		return palette.Stops[len(palette.Stops)-1].Color
 	}
+
+	// Find color stops for interpolation
+	var lowStop, highStop ColorStop
 
 	// Find appropriate color stops
 	for i := 0; i < len(palette.Stops)-1; i++ {
